@@ -67,18 +67,18 @@ class SilenceStats:
         Returns
         -------
         SilenceStats
-            A SilenceStats instance with computed silence durations.
+            A SilenceStats instance with computed silence durations in seconds.
 
         Examples
         --------
-        >>> segment = [{"start_time": 0, "end_time": 5}, {"start_time": 10, "end_time": 15}]
+        >>> segment = [{"start_time": 0, "end_time": 5000}, {"start_time": 10000, "end_time": 15000}]
         >>> stat = SilenceStats.from_segments(segments)
         >>> stat.silence_durations
-        [5]
+        [5.0]  # 5 seconds of silence
         """
         segments_sorted = sorted(segments, key=lambda x: x['start_time'])
         durations = [
-            segments_sorted[i + 1]['start_time'] - segments_sorted[i]['end_time']
+            (segments_sorted[i + 1]['start_time'] - segments_sorted[i]['end_time']) / 1000.0  # Convert to seconds
             for i in range(len(segments_sorted) - 1)
             if (segments_sorted[i + 1]['start_time'] - segments_sorted[i]['end_time']) > 0
         ]

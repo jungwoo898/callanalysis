@@ -514,13 +514,15 @@ class PunctuationRestorer:
         self.supported_languages = [
             "en", "fr", "de", "es", "it", "nl", "pt", "bg", "pl", "cs", "sk", "sl", "ko"
         ]
-        # 한국어 구두점 규칙
+        # 한국어 구두점 규칙 확장
         self.korean_punct_rules = {
             "sentence_end": ".!?",
             "pause": ",;:",
             "quotation": "\"'",
             "brackets": "()[]{}",
-            "special": "-~…"
+            "special": "-~…",
+            "korean_quotes": """''""",  # 한국어 전용 따옴표
+            "korean_brackets": "「」『』〈〉《》"  # 한국어 전용 괄호
         }
 
     def restore_punctuation(
@@ -592,28 +594,60 @@ class PunctuationRestorer:
         List[Dict]
             구두점이 복원된 단어 매핑 리스트
         """
+        # 문장 종결 패턴 확장
         sentence_end_patterns = [
+            # 기본 종결 어미
             r'다\.$', r'까\?$', r'요\.$', r'니다\.$', r'습니다\.$',
             r'어요\.$', r'아요\.$', r'네요\.$', r'군요\.$', r'죠\.$',
             r'다!$', r'요!$', r'니다!$', r'습니다!$', r'어요!$',
             r'아요!$', r'네요!$', r'군요!$', r'죠!$',
+            # 추가 종결 어미
             r'지\.$', r'잖아\.$', r'잖아요\.$', r'네\.$', r'네\?$', r'어\.$',
             r'겠어요\?$', r'겠습니까\?$', r'겠네요\?$', r'겠죠\?$', 
-            r'다구요\.$', r'라면서\.$', r'라지요\?$', r'라네요\.$'
+            r'다구요\.$', r'라면서\.$', r'라지요\?$', r'라네요\.$',
+            # 감탄/놀람 표현
+            r'다니!$', r'다니\?$', r'다니요!$', r'다니요\?$',
+            r'군요!$', r'군요\?$', r'구나!$', r'구나\?$',
+            # 의문/추측 표현
+            r'을까요\?$', r'을까\?$', r'을래요\?$', r'을래\?$',
+            r'겠어요\?$', r'겠어\?$', r'겠죠\?$', r'겠지\?$',
+            # 부탁/청유 표현
+            r'주세요\.$', r'주시죠\.$', r'주시지요\.$',
+            r'시죠\.$', r'시지요\.$', r'시다\.$', r'시다!$',
+            # 인용 표현
+            r'라고요\.$', r'라고\?$', r'라고요\?$', r'라고!$',
+            r'라고요!$', r'라구요\.$', r'라구\?$', r'라구요\?$'
         ]
 
+        # 문장 중간 패턴 확장
         pause_patterns = [
+            # 접속/전환 표현
             r'그리고$', r'그래서$', r'하지만$', r'그러나$', r'그런데$',
             r'왜냐하면$', r'때문에$', r'대해서$', r'위해서$', r'관해서$',
             r'또한$', r'게다가$', r'더구나$', r'더불어$', r'한편$', 
             r'반면$', r'오히려$', r'사실$', r'즉$', r'다만$', r'어쨌든$',
+            # 예시/설명 표현
             r'예를 들어$', r'예컨대$', r'간단히 말해$', r'특히$', r'무엇보다$',
             # 구어체 전환 어미
             r'ㄴ데요$', r'긴 한데$', r'말이에요$', r'말이야$',
+            r'거든요$', r'거든$', r'잖아요$', r'잖아$',
             # 부연 설명 전환
-            r'다시 말해$', r'바꾸어 말하면$', r'한마디로$', r'결국$'
+            r'다시 말해$', r'바꾸어 말하면$', r'한마디로$', r'결국$',
+            r'요약하면$', r'정리하면$', r'말씀드리면$', r'설명드리면$',
+            # 시간/순서 표현
+            r'먼저$', r'다음으로$', r'마지막으로$', r'그 다음$',
+            r'그리고 나서$', r'그 후에$', r'그 전에$', r'그 사이에$',
+            # 조건/가정 표현
+            r'만약$', r'혹시$', r'설령$', r'비록$', r'아무리$',
+            r'아무튼$', r'어쨌든$', r'결과적으로$'
         ]
 
+        # 인용구 패턴
+        quote_patterns = [
+            r'^["\'「『]',  # 인용구 시작
+            r'["\'」』]$',  # 인용구 종료
+            r'^["\'「『].*["\'」』]$'  # 한 단어 내 인용구
+        ]
 
         for i, word_dict in enumerate(word_speaker_mapping):
             word = word_dict["text"]
@@ -621,24 +655,31 @@ class PunctuationRestorer:
             # 문장 종결 구두점 추가
             if any(re.search(pattern, word) for pattern in sentence_end_patterns):
                 if not any(word.endswith(p) for p in self.korean_punct_rules["sentence_end"]):
-                    word += "."
+                    # 감탄/놀람 표현은 느낌표, 의문 표현은 물음표 사용
+                    if any(re.search(r'[!?]', pattern) for pattern in sentence_end_patterns if re.search(pattern, word)):
+                        word += "!" if "!" in word else "?"
+                    else:
+                        word += "."
             
             # 문장 중간 구두점 추가
             elif any(re.search(pattern, word) for pattern in pause_patterns):
                 if not any(word.endswith(p) for p in self.korean_punct_rules["pause"]):
                     word += ","
             
-            # 다음 단어가 있는 경우 연결 관계 확인
-            if i < len(word_speaker_mapping) - 1:
-                next_word = word_speaker_mapping[i + 1]["text"]
-                # 인용구 시작/종료 확인
-                if word.startswith(('"', "'")) and not word.endswith(('"', "'")):
-                    if not next_word.endswith(('"', "'")):
-                        word_speaker_mapping[i + 1]["text"] = next_word + '"'
-                # 괄호 짝 맞추기
-                if word.startswith(('(', '[', '{')) and not word.endswith((')', ']', '}')):
-                    if not next_word.endswith((')', ']', '}')):
-                        word_speaker_mapping[i + 1]["text"] = next_word + ')'
+            # 인용구 처리
+            if any(re.search(pattern, word) for pattern in quote_patterns):
+                # 인용구 시작만 있는 경우
+                if word.startswith(('"', "'", "「", "『")) and not word.endswith(('"', "'", "」", "』")):
+                    if i < len(word_speaker_mapping) - 1:
+                        next_word = word_speaker_mapping[i + 1]["text"]
+                        if not next_word.endswith(('"', "'", "」", "』")):
+                            word_speaker_mapping[i + 1]["text"] = next_word + "」"
+                # 인용구 종료만 있는 경우
+                elif word.endswith(('"', "'", "」", "』")) and not word.startswith(('"', "'", "「", "『")):
+                    if i > 0:
+                        prev_word = word_speaker_mapping[i - 1]["text"]
+                        if not prev_word.startswith(('"', "'", "「", "『")):
+                            word_speaker_mapping[i - 1]["text"] = "「" + prev_word
 
             word_dict["text"] = word
 

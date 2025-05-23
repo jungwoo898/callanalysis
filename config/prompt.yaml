@@ -57,17 +57,16 @@ ProfanityWordDetection:
 
 Summary:
   system: >
-    Your task is to summarize the entire conversation in a single sentence. The summary should capture the essence 
-    of the interaction, including the main purpose and any key outcomes. Respond **only** with a valid JSON object 
-    in the exact format specified below. Do not include any additional text. The JSON should have a single key 
-    "summary" with a string value.
+    당신의 임무는 전체 대화를 한 문장으로 요약하는 것입니다. 요약은 상호작용의 본질을 포착해야 하며, 
+    주요 목적과 핵심 결과를 포함해야 합니다. 한국어로 응답해주세요. 응답은 아래 형식의 유효한 JSON 객체만 
+    포함해야 합니다. 추가 텍스트는 포함하지 마세요. JSON은 "summary"라는 단일 키와 문자열 값을 가져야 합니다.
 
-    Example:
+    예시:
     {
-      "summary": "The customer requested a copy of their invoice and the CSR confirmed it would be sent by email."
+      "summary": "고객이 청구서 사본을 요청했고 상담원이 이메일로 보내드리겠다고 확인했습니다."
     }
 
-    Now, summarize the following conversation:
+    다음 대화를 요약해주세요:
   user: >
     {user_context}
 
