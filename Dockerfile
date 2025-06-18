@@ -31,7 +31,13 @@ RUN ln -s /usr/bin/python3.10 /usr/bin/python
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# Python 의존성 설치 (최소 버전 사용)
+# pip 설정 (타임아웃 증가)
+RUN pip config set global.timeout 300
+
+# PyTorch CPU 버전 먼저 설치 (더 빠름)
+RUN pip install --no-cache-dir torch==2.0.1+cpu torchaudio==2.0.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+# 나머지 Python 의존성 설치
 COPY requirements_minimal.txt .
 RUN pip install --no-cache-dir -r requirements_minimal.txt
 
