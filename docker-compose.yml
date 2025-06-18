@@ -2,35 +2,46 @@ version: '3.8'
 
 services:
   callytics:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     image: callytics-callytics:patched
     container_name: callytics-enhanced
     ports:
       - "8000:8000"
     volumes:
-      # 오디오 파일 마운트
-      - ./audio:/app/audio
-      # 데이터베이스 영속성
-      - ./data:/app/.db
-      # 로그 파일
-      - ./logs:/app/logs
-      # 임시 파일
-      - ./temp:/app/.temp
-      # AI 모델 (로컬에 있다면)
-      - "./AI 모델:/app/AI 모델"
+      - audio_data:/app/audio
+      - db_data:/app/.db
+      - log_data:/app/logs
+      - temp_data:/app/.temp
+      - model_data:/app/models
+      - "./AI 모델:/app/AI 모델:ro"
     environment:
       - CUDA_VISIBLE_DEVICES=0
       - PYTHONPATH=/app
-      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=512
+      - PYTORCH_CUDA_MEMORY_FRACTION=0.75
+      - TZ=Asia/Seoul
     deploy:
       resources:
+        limits:
+          memory: 8G
+          cpus: '2'
         reservations:
+          memory: 2G
           devices:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    ulimits:
+      memlock: -1
+      stack: 67108864
     restart: unless-stopped
-    command: ["python", "main_enhanced.py"]
+    stop_grace_period: 120s
+    networks:
+      - callytics-net
 
   # 개발용 서비스 (선택사항)
   callytics-dev:
@@ -49,15 +60,134 @@ services:
     environment:
       - CUDA_VISIBLE_DEVICES=0
       - PYTHONPATH=/app
-      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=256
+      - PYTORCH_CUDA_MEMORY_FRACTION=0.5
     deploy:
       resources:
+        limits:
+          memory: 4G
+          cpus: '1'
         reservations:
+          memory: 1G
           devices:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    ulimits:
+      memlock: -1
+      stack: 67108864
     restart: unless-stopped
     command: ["python", "-u", "main_enhanced.py"]
     profiles:
       - dev
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    volumes:
+      - ./config/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - callytics-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - TZ=Asia/Seoul
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - callytics-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - callytics-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - callytics-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+volumes:
+  audio_data:
+    driver: local
+  db_data:
+    driver: local
+  log_data:
+    driver: local
+  temp_data:
+    driver: local
+  model_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  callytics-net:
+    driver: bridge
