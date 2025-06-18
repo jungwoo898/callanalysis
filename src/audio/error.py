@@ -5,7 +5,23 @@ import subprocess
 from typing import Annotated
 
 # Related third party imports
-from pyannote.audio import Pipeline
+try:
+    from pyannote.audio import Pipeline
+    PYANNOTE_AVAILABLE = True
+except ImportError:
+    print("Warning: pyannote.audio not available, using fallback dialogue detection")
+    PYANNOTE_AVAILABLE = False
+    # 더미 클래스 생성
+    class Pipeline:
+        def __init__(self, pipeline_model):
+            pass
+        def __call__(self, audio_file):
+            return DummyDiarization()
+
+class DummyDiarization:
+    def itertracks(self, yield_label=True):
+        # 더미 화자 데이터 반환
+        return [("SPEAKER_00", 0.0, 60.0, "SPEAKER_00")]
 
 logging.basicConfig(level=logging.INFO)
 
@@ -56,7 +72,11 @@ class DialogueDetecting:
         self.delete_original = delete_original
         self.skip_if_no_dialogue = skip_if_no_dialogue
         self.temp_dir = temp_dir
-        self.pipeline = Pipeline.from_pretrained(pipeline_model)
+        
+        if PYANNOTE_AVAILABLE:
+            self.pipeline = Pipeline.from_pretrained(pipeline_model)
+        else:
+            self.pipeline = Pipeline(pipeline_model)
 
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)

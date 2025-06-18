@@ -1,8 +1,8 @@
 # Callytics Enhanced 최소 의존성
 
 # 핵심 패키지 (안정적인 버전으로 고정)
-torch==2.0.1
-torchaudio==2.0.1
+# torch==2.0.1  # Dockerfile에서 CPU 버전으로 설치
+# torchaudio==2.0.1  # Dockerfile에서 CPU 버전으로 설치
 transformers==4.30.0
 accelerate==0.20.0
 peft==0.4.0

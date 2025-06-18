@@ -44,8 +44,8 @@ RUN pip install --no-cache-dir -r requirements_minimal.txt
 # omegaconf 추가 (NeMo 의존성)
 RUN pip install --no-cache-dir omegaconf
 
-# pyannote.audio 추가 (화자 분리)
-RUN pip install --no-cache-dir pyannote.audio
+# pyannote.audio는 선택적으로 설치 (빌드 실패 시 주석 처리)
+# RUN pip install --no-cache-dir pyannote.audio
 
 # 한국어 처리 관련 패키지 설치 (안정적인 것만)
 RUN pip install --no-cache-dir \
