@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  callytics:
+    build:
+      context: .
+      dockerfile: Dockerfile.ultra_minimal
+    container_name: callytics-ultra-minimal
+    ports:
+      - "8000:8000"
+    volumes:
+      # 오디오 파일 마운트
+      - ./audio:/app/audio
+      # 데이터베이스 영속성
+      - ./data:/app/.db
+      # 로그 파일
+      - ./logs:/app/logs
+      # 임시 파일
+      - ./temp:/app/.temp
+      # AI 모델 (로컬에 있다면)
+      - ./AI\ 모델:/app/AI\ 모델
+    environment:
+      - CUDA_VISIBLE_DEVICES=""
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    command: ["python", "main_enhanced.py", "--cpu-only"] 

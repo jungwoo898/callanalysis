@@ -1,0 +1,189 @@
+runtime:
+  device: "cuda"                                       # Options: "cpu", "cuda"
+  compute_type: "float16"                              # Options: "int8", "float16"
+  cuda_alloc_conf: "expandable_segments:True"          # PyTorch CUDA Memory Management
+
+language:
+  audio: "ko"                                          # Options: "en", "tr", "ko"
+  text: "ko"                                           # Options: "en", "tr", "ko"
+
+models:
+  # 기존 모델들
+  llama:
+    model_name: "meta-llama/Llama-3.2-3B-Instruct"     # Options: "meta-llama/Llama-3.2-3B-Instruct", etc.
+    huggingface_api_key: "${HUGGINGFACE_TOKEN}"
+
+  openai:
+    model_name: "gpt-4o"                               # Options: "gpt-4", "gpt-4o", etc.
+    openai_api_key: "${OPENAI_API_KEY}"
+
+  azure_openai:
+    model_name: "gpt-4o"                               # Options: "gpt-4", "gpt-4o", etc.
+    azure_openai_api_key: "${AZURE_OPENAI_API_KEY}"
+    azure_openai_api_base: "${AZURE_OPENAI_API_BASE}"
+    azure_openai_api_version: "${AZURE_OPENAI_API_VERSION}"
+
+  mpsenet:
+    model_name: "JacobLinCool/MP-SENet-DNS"            # Options: "JacobLinCool/MP-SENet-DNS", "JacobLinCool/MP-SENet-VB"
+
+  # 한국어 특화 모델들
+  korean_models:
+    openchat:
+      model_type: "openchat"
+      base_model_name: "../AI 모델/model/openchat-3.5-0106-private"
+      peft_model_name: ""                              # PEFT 모델 경로 (있는 경우)
+      device: "auto"
+      torch_dtype: "bfloat16"
+      max_new_tokens: 1024
+      temperature: 0.1
+      use_flash_attention: true
+      
+    llama3:
+      model_type: "llama3"
+      base_model_name: "../AI 모델/model/Meta-Llama-3-8B-Instruct-private"
+      peft_model_name: ""
+      device: "auto"
+      torch_dtype: "bfloat16"
+      max_new_tokens: 1024
+      temperature: 0.1
+      use_flash_attention: true
+      
+    gemma:
+      model_type: "gemma"
+      base_model_name: "../AI 모델/model/gemma-2b-it-private"
+      peft_model_name: ""
+      device: "auto"
+      torch_dtype: "bfloat16"
+      max_new_tokens: 1024
+      temperature: 0.1
+      use_flash_attention: false
+
+# LG U+ 민원 분석 설정
+complaint_analysis:
+  enabled: true
+  default_model: "openchat"                            # 기본 사용 모델
+  fallback_model: "openai"                             # 폴백 모델
+  
+  # 분석 옵션
+  analysis_options:
+    classification: true
+    sentiment_analysis: true
+    priority_evaluation: true
+    department_assignment: true
+    summary_generation: true
+    qa_generation: true
+    
+  # 임계값 설정
+  thresholds:
+    confidence_min: 0.5
+    sentiment_threshold: -0.3
+    priority_high: 4
+    urgency_high: "High"
+    
+  # LG U+ 업무 분야 설정
+  categories:
+    - name: "요금 안내"
+      keywords: ["요금제", "안내", "계산", "요금", "문의", "얼마", "비용"]
+    - name: "요금 납부"
+      keywords: ["납부", "결제", "입금", "미납", "연체", "납부일", "납부방법"]
+    - name: "요금제 변경"
+      keywords: ["요금제", "변경", "신청", "교체", "업그레이드", "다운그레이드"]
+    - name: "선택약정 할인"
+      keywords: ["선택약정", "할인", "약정", "혜택", "할인율", "약정기간"]
+    - name: "납부 방법 변경"
+      keywords: ["납부방법", "자동이체", "신용카드", "현금납부", "변경"]
+    - name: "부가서비스 안내"
+      keywords: ["부가서비스", "부가", "서비스", "가입", "해지", "안내"]
+    - name: "소액 결제"
+      keywords: ["소액결제", "소액", "결제", "신청", "확인", "오류"]
+    - name: "휴대폰 정지/분실/파손"
+      keywords: ["정지", "분실", "파손", "고장", "교체", "수리", "신고"]
+    - name: "기기변경"
+      keywords: ["기기", "변경", "교체", "업그레이드", "이전", "새폰"]
+    - name: "명의/번호/유심 해지"
+      keywords: ["명의", "번호", "유심", "해지", "변경", "이전"]
+    - name: "기타"
+      keywords: []
+
+  # 상담 주제 설정
+  topics:
+    - name: "상품 및 서비스 일반"
+      keywords: ["상품", "서비스", "일반", "문의", "안내"]
+    - name: "주문/결제/입금 확인"
+      keywords: ["주문", "결제", "입금", "확인", "처리"]
+    - name: "취소/반품/교환/환불/AS"
+      keywords: ["취소", "반품", "교환", "환불", "AS", "수리"]
+    - name: "회원 관리"
+      keywords: ["회원", "관리", "정보", "계정", "변경"]
+    - name: "배송 문의"
+      keywords: ["배송", "택배", "배달", "수령", "지연"]
+    - name: "이벤트/할인"
+      keywords: ["이벤트", "할인", "프로모션", "혜택", "쿠폰"]
+    - name: "콘텐츠"
+      keywords: ["콘텐츠", "게임", "음악", "동영상", "앱"]
+    - name: "제휴"
+      keywords: ["제휴", "파트너", "협력", "서비스"]
+    - name: "기타"
+      keywords: []
+
+  # 상담 내용 유형 설정
+  consultation_types:
+    - name: "일반 문의 상담"
+      keywords: ["문의", "안내", "질문", "궁금", "알고싶"]
+    - name: "업무 처리 상담"
+      keywords: ["신청", "처리", "변경", "해지", "가입", "교체"]
+    - name: "고충 상담"
+      keywords: ["불만", "고충", "문제", "어려움", "힘들", "짜증"]
+
+  # LG U+ 부서 설정
+  departments:
+    # 홈 서비스 부서
+    home_services:
+      - name: "홈서비스일반상담"
+        keywords: ["인터넷", "TV", "IoT", "일반", "문제해결", "정보변경"]
+      - name: "홈서비스기술상담"
+        keywords: ["장애", "품질", "단말기", "A/S", "기술", "고장"]
+      - name: "홈서비스가입상담"
+        keywords: ["가입", "신청", "혜택", "안내", "접수"]
+      - name: "홈가치제안상담"
+        keywords: ["해지", "재약정", "요금할인", "불편사항", "제안"]
+    
+    # 모바일 서비스 부서
+    mobile_services:
+      - name: "모바일일반상담"
+        keywords: ["휴대폰", "일반", "문제해결", "요금제", "컨설팅"]
+      - name: "SAVE상담"
+        keywords: ["해지", "분실", "파손", "맞춤", "혜택"]
+      - name: "통화품질상담"
+        keywords: ["통화품질", "통화", "품질", "문제해결"]
+      - name: "전문상담"
+        keywords: ["로밍", "유플러스샵", "cyber", "외국인", "알뜰폰"]
+
+# 데이터베이스 설정
+database:
+  path: ".db/Callytics.sqlite"
+  backup_enabled: true
+  backup_interval: 24  # 시간
+  max_backup_count: 7
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  file: "logs/callytics.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+# 성능 설정
+performance:
+  batch_size: 1
+  max_workers: 4
+  memory_limit: "8GB"
+  gpu_memory_fraction: 0.8
+
+# API 설정
+api:
+  enabled: false
+  host: "localhost"
+  port: 8000
+  cors_origins: ["*"]
+  rate_limit: 100  # requests per minute 

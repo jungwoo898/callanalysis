@@ -1,16 +1,12 @@
-# Callytics Dockerfile
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+# Callytics CPU 전용 Dockerfile
+FROM python:3.10-slim
 
 # 환경 변수 설정
-ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-ENV CUDA_VISIBLE_DEVICES=0
+ENV DEBIAN_FRONTEND=noninteractive
 
 # 시스템 패키지 업데이트 및 필수 패키지 설치
 RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3.10-dev \
-    python3-pip \
     git \
     wget \
     curl \
@@ -25,21 +21,12 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 심볼릭 링크 생성
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
-
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# Python 의존성 설치 (최소 버전 사용)
+# Python 의존성 설치 (CPU 전용)
 COPY requirements_minimal.txt .
 RUN pip install --no-cache-dir -r requirements_minimal.txt
-
-# omegaconf 추가 (NeMo 의존성)
-RUN pip install --no-cache-dir omegaconf
-
-# pyannote.audio 추가 (화자 분리)
-RUN pip install --no-cache-dir pyannote.audio
 
 # 한국어 처리 관련 패키지 설치 (안정적인 것만)
 RUN pip install --no-cache-dir \
@@ -62,7 +49,6 @@ EXPOSE 8000
 
 # 환경 변수 설정
 ENV PYTHONPATH=/app
-ENV CUDA_LAUNCH_BLOCKING=1
 
-# 실행 명령 (main_enhanced.py로 변경)
-CMD ["python", "main_enhanced.py"]
+# 실행 명령
+CMD ["python", "main_enhanced.py", "--cpu-only"] 

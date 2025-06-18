@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  callytics-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: callytics-test
+    volumes:
+      # 오디오 파일 마운트
+      - ./audio:/app/audio
+      - ./.data:/app/.data
+      # 데이터베이스 영속성
+      - ./data:/app/.db
+      # 로그 파일
+      - ./logs:/app/logs
+      # 임시 파일
+      - ./temp:/app/.temp
+    environment:
+      - PYTHONPATH=/app
+    restart: "no" 

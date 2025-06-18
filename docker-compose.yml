@@ -1,17 +1,63 @@
+version: '3.8'
+
 services:
   callytics:
-    build:
-      context: .
-      args:
-        HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN}
-    container_name: callytics_app
-    volumes:
-      - .:/app
+    build: .
+    image: callytics-callytics:patched
+    container_name: callytics-enhanced
     ports:
-      - "8501:7860"
-    env_file:
-      - .env
+      - "8000:8000"
+    volumes:
+      # 오디오 파일 마운트
+      - ./audio:/app/audio
+      # 데이터베이스 영속성
+      - ./data:/app/.db
+      # 로그 파일
+      - ./logs:/app/logs
+      # 임시 파일
+      - ./temp:/app/.temp
+      # AI 모델 (로컬에 있다면)
+      - "./AI 모델:/app/AI 모델"
     environment:
-      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
-    stdin_open: true
-    tty: true
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONPATH=/app
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    command: ["python", "main_enhanced.py"]
+
+  # 개발용 서비스 (선택사항)
+  callytics-dev:
+    build: .
+    container_name: callytics-dev
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./audio:/app/audio
+      - ./data:/app/.db
+      - ./logs:/app/logs
+      - ./temp:/app/.temp
+      - ./AI\ 모델:/app/AI\ 모델
+      # 개발 시 코드 변경사항 반영
+      - .:/app
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONPATH=/app
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    command: ["python", "-u", "main_enhanced.py"]
+    profiles:
+      - dev

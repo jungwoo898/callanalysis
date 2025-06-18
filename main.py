@@ -198,7 +198,7 @@ async def main(audio_file_path: str):
 
     final_output = annotator.finalize()
 
-    # Step 16: Tocal Silence Calculation
+    # Step 16: Total Silence Calculation
     stats = SilenceStats.from_segments(final_output['ssm'])
     t_std = stats.threshold_std(factor=0.99)
     final_output["silence"] = t_std

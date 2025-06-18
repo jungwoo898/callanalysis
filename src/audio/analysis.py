@@ -87,9 +87,17 @@ class WordSpeakerMapper:
         >>> mapper.filter_missing_timestamps(word_timestamps)
         [{'text': 'Hello', 'start': 0, 'end': 1.2}]
         """
+        if not word_timestamps:
+            return []
+        
         if word_timestamps[0].get("start") is None:
             word_timestamps[0]["start"] = initial_timestamp
-            word_timestamps[0]["end"] = self._get_next_start_timestamp(word_timestamps, 0, final_timestamp)
+            word_timestamps[0]["end"] = self._get_next_start_timestamp(
+                word_timestamps,
+                0,
+                final_timestamp,
+            )
+    
 
         result = [word_timestamps[0]]
 

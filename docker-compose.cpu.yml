@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  callytics:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    environment:
+      - CUDA_VISIBLE_DEVICES=""
+      - PYTORCH_CUDA_ALLOC_CONF=""
+    deploy:
+      resources:
+        reservations:
+          devices: []
+    command: ["python", "main_enhanced.py", "--cpu-only"] 
