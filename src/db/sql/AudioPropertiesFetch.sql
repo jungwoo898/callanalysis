@@ -1,0 +1,1 @@
+SELECT * FROM audio_properties WHERE id = ? 

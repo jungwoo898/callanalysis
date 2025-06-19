@@ -7,6 +7,27 @@ language:
   audio: "ko"                                          # Options: "en", "tr", "ko"
   text: "ko"                                           # Options: "en", "tr", "ko"
 
+# OpenAI API 설정 (ChatGPT 분석용)
+openai:
+  api_key: "${OPENAI_API_KEY}"                         # OpenAI API 키
+  model: "gpt-4"                                       # 사용할 모델
+  max_tokens: 2000                                     # 최대 토큰 수
+  temperature: 0.1                                     # 생성 다양성
+  timeout: 30                                          # API 호출 타임아웃 (초)
+
+# 화자 분리 설정
+diarization:
+  auth_token: "${HUGGINGFACE_TOKEN}"                   # HuggingFace 인증 토큰
+  model: "pyannote/speaker-diarization-3.1"           # 화자 분리 모델
+  min_speakers: 1                                      # 최소 화자 수
+  max_speakers: 10                                     # 최대 화자 수
+
+# 음성 인식 설정
+whisper:
+  model: "base"                                        # Whisper 모델 크기 (tiny/base/small/medium/large)
+  language: "ko"                                       # 기본 언어
+  suppress_numerals: false                             # 숫자 억제 여부
+
 models:
   # 기존 모델들
   llama:
@@ -57,6 +78,75 @@ models:
       max_new_tokens: 1024
       temperature: 0.1
       use_flash_attention: false
+
+# 통합 상담 분석 설정
+integrated_analysis:
+  enabled: true
+  default_model: "gpt-4"                               # 기본 ChatGPT 모델
+  fallback_model: "openchat"                           # 폴백 모델 (로컬)
+  
+  # 분석 옵션
+  analysis_options:
+    business_type_classification: true                 # 업무 유형 분류
+    consultation_type_classification: true             # 상담 유형 분류
+    detail_classification: true                        # 세부 분류
+    result_evaluation: true                            # 상담 결과 평가
+    summary_generation: true                           # 요약 생성
+    solution_proposal: true                            # 해결방안 제시
+    
+  # 임계값 설정
+  thresholds:
+    confidence_min: 0.5                                # 최소 신뢰도
+    processing_timeout: 60                             # 처리 타임아웃 (초)
+    max_file_size: 100                                 # 최대 파일 크기 (MB)
+    
+  # 상담 분류 체계
+  business_types:
+    - "요금 안내"
+    - "요금 납부"
+    - "요금제 변경"
+    - "선택약정 할인"
+    - "납부 방법 변경"
+    - "부가서비스 안내"
+    - "소액 결제"
+    - "휴대폰 정지 분실 파손"
+    - "기기변경"
+    - "명의 번호 유심 해지"
+    - "그 외 업무유형"
+    
+  classification_types:
+    - "상담 주제"
+    - "상담 요건"
+    - "상담 내용"
+    - "상담 사유"
+    - "상담 결과"
+    
+  detail_classifications:
+    consultation_topic:
+      - "상품 및 서비스 일반"
+      - "주문 결제 입금 확인"
+      - "취소 반품 교환 환불 AS"
+      - "회원 관리"
+      - "배송 문의"
+      - "이벤트 할인"
+      - "콘텐츠"
+      - "제휴"
+      - "기타"
+    consultation_requirement:
+      - "단일 요건 민원"
+      - "다수 요건 민원"
+    consultation_content:
+      - "일반 문의 상담"
+      - "업무 처리 상담"
+      - "고충 상담"
+    consultation_reason:
+      - "업체"
+      - "민원인"
+    consultation_result:
+      - "만족"
+      - "미흡"
+      - "해결 불가"
+      - "추가 상담 필요"
 
 # LG U+ 민원 분석 설정
 complaint_analysis:
@@ -161,7 +251,7 @@ complaint_analysis:
 
 # 데이터베이스 설정
 database:
-  path: ".db/Callytics.sqlite"
+  path: "Callytics.sqlite"                             # 데이터베이스 파일 경로
   backup_enabled: true
   backup_interval: 24  # 시간
   max_backup_count: 7

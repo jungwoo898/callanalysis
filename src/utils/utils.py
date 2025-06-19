@@ -144,6 +144,61 @@ class Cleaner:
             else:
                 print(f"Path {path} is not a file or directory.")
 
+    @staticmethod
+    def cleanup_temp_files(temp_dir: str) -> None:
+        """
+        Cleans up temporary files in the specified directory.
+
+        Parameters
+        ----------
+        temp_dir : str
+            Path to the temporary directory to clean.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - Removes temporary audio files, manifests, and other processing artifacts
+        - Keeps the directory structure intact
+        - Only removes files, not subdirectories
+
+        Examples
+        --------
+        >>> Cleaner.cleanup_temp_files("/app/.temp")
+        Temporary files cleaned up from /app/.temp
+        """
+        try:
+            if not os.path.exists(temp_dir):
+                print(f"Temporary directory {temp_dir} does not exist.")
+                return
+
+            # 임시 파일 확장자들
+            temp_extensions = {'.wav', '.mp3', '.flac', '.m4a', '.aac', '.ogg', '.json', '.rttm', '.txt', '.srt'}
+            
+            cleaned_count = 0
+            for filename in os.listdir(temp_dir):
+                file_path = os.path.join(temp_dir, filename)
+                
+                # 파일만 삭제 (디렉토리는 유지)
+                if os.path.isfile(file_path):
+                    # 임시 파일 확장자 확인
+                    if any(filename.lower().endswith(ext) for ext in temp_extensions):
+                        try:
+                            os.remove(file_path)
+                            cleaned_count += 1
+                        except OSError as e:
+                            print(f"Failed to remove {file_path}: {e}")
+            
+            if cleaned_count > 0:
+                print(f"✅ {cleaned_count}개 임시 파일 정리 완료: {temp_dir}")
+            else:
+                print(f"📁 정리할 임시 파일이 없습니다: {temp_dir}")
+                
+        except Exception as e:
+            print(f"❌ 임시 파일 정리 중 오류 발생: {e}")
+
 
 class Watcher(FileSystemEventHandler):
     """

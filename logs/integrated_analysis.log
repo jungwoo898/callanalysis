@@ -1,0 +1,272 @@
+2025-06-19 17:13:02,835 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:13:02,835 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:13:06,137 - src.db.manager - ERROR - 데이터베이스 초기화 실패: no such column: consultation_id
+2025-06-19 17:13:06,137 - __main__ - ERROR - 분석 중 오류 발생: no such column: consultation_id
+2025-06-19 17:13:06,137 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\silent\Callytics\integrated_analysis_main.py", line 58, in main
+    analyzer = IntegratedAnalyzer(
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\silent\Callytics\src\integrated_analyzer.py", line 72, in __init__
+    self.db_manager = DatabaseManager(config_path)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\silent\Callytics\src\db\manager.py", line 29, in __init__
+    self._init_database()
+  File "C:\silent\Callytics\src\db\manager.py", line 82, in _init_database
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_consultation_id ON consultation_analysis (consultation_id)")
+sqlite3.OperationalError: no such column: consultation_id
+
+2025-06-19 17:14:00,772 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:14:00,772 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:14:03,520 - src.db.manager - INFO - 데이터베이스 초기화 완료
+2025-06-19 17:14:03,520 - src.integrated_analyzer - INFO - 통합 분석기 초기화 완료
+2025-06-19 17:14:03,520 - __main__ - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:14:03,520 - src.integrated_analyzer - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:14:03,520 - src.integrated_analyzer - ERROR - 상담 분석 중 오류 발생: 'PerformanceMonitor' object has no attribute 'start'
+2025-06-19 17:14:03,520 - __main__ - ERROR - 분석 중 오류 발생: 'PerformanceMonitor' object has no attribute 'start'
+2025-06-19 17:14:03,520 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\silent\Callytics\integrated_analysis_main.py", line 75, in main
+    result = analyzer.analyze_consultation(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\silent\Callytics\src\integrated_analyzer.py", line 125, in analyze_consultation
+    self.performance_monitor.start()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PerformanceMonitor' object has no attribute 'start'
+
+2025-06-19 17:14:49,629 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:14:49,629 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:14:52,211 - src.db.manager - INFO - 데이터베이스 초기화 완료
+2025-06-19 17:14:52,211 - src.integrated_analyzer - INFO - 통합 분석기 초기화 완료
+2025-06-19 17:14:52,218 - __main__ - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:14:52,218 - src.integrated_analyzer - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:14:52,218 - src.integrated_analyzer - INFO - 1단계: 오디오 처리 시작
+2025-06-19 17:14:54,079 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _speechbrain_save
+2025-06-19 17:14:54,079 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _speechbrain_load
+2025-06-19 17:14:54,079 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for save
+2025-06-19 17:14:54,079 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for load
+2025-06-19 17:14:54,438 - speechbrain.utils.quirks - INFO - Applied quirks (see `speechbrain.utils.quirks`): [allow_tf32, disable_jit_profiling]
+2025-06-19 17:14:54,438 - speechbrain.utils.quirks - INFO - Excluded quirks specified by the `SB_DISABLE_QUIRKS` environment (comma-separated list): []
+2025-06-19 17:14:54,438 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _save
+2025-06-19 17:14:54,438 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _recover
+2025-06-19 17:14:55,549 - datasets - INFO - PyTorch version 2.5.1 available.
+2025-06-19 17:14:57,299 - src.integrated_analyzer - ERROR - 상담 분석 중 오류 발생: 오디오에서 발화를 추출할 수 없습니다.
+2025-06-19 17:14:57,299 - __main__ - ERROR - 분석 중 오류 발생: 오디오에서 발화를 추출할 수 없습니다.
+2025-06-19 17:14:57,299 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\silent\Callytics\integrated_analysis_main.py", line 75, in main
+    result = analyzer.analyze_consultation(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\silent\Callytics\src\integrated_analyzer.py", line 132, in analyze_consultation
+    raise ValueError("오디오에서 발화를 추출할 수 없습니다.")
+ValueError: 오디오에서 발화를 추출할 수 없습니다.
+
+2025-06-19 17:16:55,050 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:16:55,050 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:16:57,942 - src.db.manager - INFO - 데이터베이스 초기화 완료
+2025-06-19 17:16:57,942 - src.integrated_analyzer - INFO - 통합 분석기 초기화 완료
+2025-06-19 17:16:57,942 - __main__ - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:16:57,942 - src.integrated_analyzer - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:16:57,942 - src.integrated_analyzer - INFO - 1단계: 오디오 처리 시작
+2025-06-19 17:16:59,671 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _speechbrain_save
+2025-06-19 17:16:59,671 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _speechbrain_load
+2025-06-19 17:16:59,671 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for save
+2025-06-19 17:16:59,671 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for load
+2025-06-19 17:17:00,059 - speechbrain.utils.quirks - INFO - Applied quirks (see `speechbrain.utils.quirks`): [disable_jit_profiling, allow_tf32]
+2025-06-19 17:17:00,059 - speechbrain.utils.quirks - INFO - Excluded quirks specified by the `SB_DISABLE_QUIRKS` environment (comma-separated list): []
+2025-06-19 17:17:00,059 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _save
+2025-06-19 17:17:00,059 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _recover
+2025-06-19 17:17:01,090 - datasets - INFO - PyTorch version 2.5.1 available.
+2025-06-19 17:17:01,961 - faster_whisper - INFO - Processing audio with duration 02:28.988
+2025-06-19 17:17:11,715 - src.integrated_analyzer - INFO - 2단계: 상담 내용 분석 시작
+2025-06-19 17:17:11,715 - src.integrated_analyzer - INFO - 3단계: 결과 통합
+2025-06-19 17:17:11,715 - src.integrated_analyzer - ERROR - 상담 분석 중 오류 발생: name 'time' is not defined
+2025-06-19 17:17:11,715 - __main__ - ERROR - 분석 중 오류 발생: name 'time' is not defined
+2025-06-19 17:17:11,715 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\silent\Callytics\integrated_analysis_main.py", line 75, in main
+    result = analyzer.analyze_consultation(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\silent\Callytics\src\integrated_analyzer.py", line 158, in analyze_consultation
+    'timestamp': time.time()
+                 ^^^^
+NameError: name 'time' is not defined. Did you forget to import 'time'
+
+2025-06-19 17:19:28,794 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:19:28,794 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:19:31,401 - src.db.manager - INFO - 데이터베이스 초기화 완료
+2025-06-19 17:19:31,401 - src.integrated_analyzer - INFO - 통합 분석기 초기화 완료
+2025-06-19 17:19:31,401 - __main__ - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:19:31,401 - src.integrated_analyzer - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:19:31,401 - src.integrated_analyzer - INFO - 1단계: 오디오 처리 시작
+2025-06-19 17:19:33,160 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _speechbrain_save
+2025-06-19 17:19:33,160 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _speechbrain_load
+2025-06-19 17:19:33,176 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for save
+2025-06-19 17:19:33,176 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for load
+2025-06-19 17:19:33,539 - speechbrain.utils.quirks - INFO - Applied quirks (see `speechbrain.utils.quirks`): [allow_tf32, disable_jit_profiling]
+2025-06-19 17:19:33,539 - speechbrain.utils.quirks - INFO - Excluded quirks specified by the `SB_DISABLE_QUIRKS` environment (comma-separated list): []
+2025-06-19 17:19:33,539 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _save
+2025-06-19 17:19:33,539 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _recover
+2025-06-19 17:19:34,596 - datasets - INFO - PyTorch version 2.5.1 available.
+2025-06-19 17:20:53,383 - faster_whisper - INFO - Processing audio with duration 00:00.996
+2025-06-19 17:20:54,137 - faster_whisper - INFO - Processing audio with duration 00:02.430
+2025-06-19 17:20:54,929 - faster_whisper - INFO - Processing audio with duration 00:01.418
+2025-06-19 17:20:55,645 - faster_whisper - INFO - Processing audio with duration 00:00.506
+2025-06-19 17:20:56,312 - faster_whisper - INFO - Processing audio with duration 00:02.194
+2025-06-19 17:20:57,075 - faster_whisper - INFO - Processing audio with duration 00:04.725
+2025-06-19 17:20:57,946 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:21:01,033 - faster_whisper - INFO - Processing audio with duration 00:00.253
+2025-06-19 17:21:01,799 - faster_whisper - INFO - Processing audio with duration 00:00.051
+2025-06-19 17:21:02,600 - faster_whisper - INFO - Processing audio with duration 00:00.135
+2025-06-19 17:21:10,378 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:21:12,589 - faster_whisper - INFO - Processing audio with duration 00:04.911
+2025-06-19 17:21:13,433 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:21:14,134 - faster_whisper - INFO - Processing audio with duration 00:03.476
+2025-06-19 17:21:14,904 - faster_whisper - INFO - Processing audio with duration 00:02.092
+2025-06-19 17:21:15,615 - faster_whisper - INFO - Processing audio with duration 00:11.492
+2025-06-19 17:21:16,647 - faster_whisper - INFO - Processing audio with duration 00:01.755
+2025-06-19 17:21:17,351 - faster_whisper - INFO - Processing audio with duration 00:02.109
+2025-06-19 17:21:18,099 - faster_whisper - INFO - Processing audio with duration 00:01.704
+2025-06-19 17:21:18,861 - faster_whisper - INFO - Processing audio with duration 00:00.540
+2025-06-19 17:21:19,525 - faster_whisper - INFO - Processing audio with duration 00:01.299
+2025-06-19 17:21:20,266 - faster_whisper - INFO - Processing audio with duration 00:04.489
+2025-06-19 17:21:21,067 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:21:23,508 - faster_whisper - INFO - Processing audio with duration 00:06.834
+2025-06-19 17:21:24,467 - faster_whisper - INFO - Processing audio with duration 00:01.046
+2025-06-19 17:21:25,215 - faster_whisper - INFO - Processing audio with duration 00:02.464
+2025-06-19 17:21:25,950 - faster_whisper - INFO - Processing audio with duration 00:00.641
+2025-06-19 17:21:27,568 - faster_whisper - INFO - Processing audio with duration 00:00.084
+2025-06-19 17:21:32,101 - faster_whisper - INFO - Processing audio with duration 00:00.101
+2025-06-19 17:21:34,879 - faster_whisper - INFO - Processing audio with duration 00:01.569
+2025-06-19 17:21:35,680 - faster_whisper - INFO - Processing audio with duration 00:00.219
+2025-06-19 17:21:36,421 - faster_whisper - INFO - Processing audio with duration 00:00.641
+2025-06-19 17:21:37,110 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:21:40,192 - faster_whisper - INFO - Processing audio with duration 00:08.286
+2025-06-19 17:21:41,105 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:21:45,785 - faster_whisper - INFO - Processing audio with duration 00:00.034
+2025-06-19 17:21:50,881 - faster_whisper - INFO - Processing audio with duration 00:00.101
+2025-06-19 17:21:56,025 - faster_whisper - INFO - Processing audio with duration 00:00.945
+2025-06-19 17:21:58,613 - faster_whisper - INFO - Processing audio with duration 00:02.295
+2025-06-19 17:21:59,337 - faster_whisper - INFO - Processing audio with duration 00:00.506
+2025-06-19 17:22:00,029 - faster_whisper - INFO - Processing audio with duration 00:01.367
+2025-06-19 17:22:00,779 - faster_whisper - INFO - Processing audio with duration 00:07.239
+2025-06-19 17:22:01,656 - faster_whisper - INFO - Processing audio with duration 00:01.671
+2025-06-19 17:22:02,370 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:22:03,050 - faster_whisper - INFO - Processing audio with duration 00:00.979
+2025-06-19 17:22:03,622 - src.integrated_analyzer - INFO - 2단계: 상담 내용 분석 시작
+2025-06-19 17:22:03,622 - src.integrated_analyzer - INFO - 3단계: 결과 통합
+2025-06-19 17:22:03,622 - src.integrated_analyzer - INFO - 4단계: 데이터베이스 저장
+2025-06-19 17:22:03,638 - src.db.manager - INFO - 상담 분석 결과 저장 완료: test_consultation_1750321171
+2025-06-19 17:22:03,801 - src.integrated_analyzer - INFO - 데이터베이스 저장 완료
+2025-06-19 17:22:03,801 - src.integrated_analyzer - INFO - 상담 분석 완료: 33개 발화, 9개 분석 항목
+2025-06-19 17:22:03,801 - __main__ - INFO - === 분석 결과 ===
+2025-06-19 17:22:03,801 - __main__ - INFO - 상담 ID: test_consultation_1750321171
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 수: 33
+2025-06-19 17:22:03,801 - __main__ - INFO - 처리 시간: 152.40초
+2025-06-19 17:22:03,801 - __main__ - INFO - === 상담 분석 결과 ===
+2025-06-19 17:22:03,801 - __main__ - INFO - 수집기관: Unknown
+2025-06-19 17:22:03,801 - __main__ - INFO - 업무 유형: 그 외 업무유형
+2025-06-19 17:22:03,801 - __main__ - INFO - 분류 유형: 상담 주제
+2025-06-19 17:22:03,801 - __main__ - INFO - 세부 분류: 기타
+2025-06-19 17:22:03,801 - __main__ - INFO - 상담 주제: Unknown
+2025-06-19 17:22:03,801 - __main__ - INFO - 상담 요건: Unknown
+2025-06-19 17:22:03,801 - __main__ - INFO - 상담 결과: 미흡
+2025-06-19 17:22:03,801 - __main__ - INFO - === 발화 내용 요약 ===
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 1: SPEAKER_01 -  일상의 즐거운...
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 2: SPEAKER_00 -  변화, LGO 플러스 네임입니다....
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 3: SPEAKER_00 -  뭐 좀 물어보려구요....
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 4: SPEAKER_00 -  네...
+2025-06-19 17:22:03,801 - __main__ - INFO - 발화 5: SPEAKER_00 -  제가 연체가 상큼 얼마나 썼나요?...
+2025-06-19 17:22:03,801 - __main__ - INFO - ... 외 28개 발화
+2025-06-19 17:22:03,817 - __main__ - INFO - === 분석 통계 ===
+2025-06-19 17:22:03,817 - __main__ - INFO - 전체 상담 수: 1
+2025-06-19 17:22:03,817 - __main__ - INFO - 전체 발화 수: 33
+2025-06-19 17:22:03,817 - __main__ - INFO - 평균 처리 시간: 152.22초
+2025-06-19 17:22:03,817 - __main__ - INFO - === 분석 완료 ===
+2025-06-19 17:25:56,542 - __main__ - INFO - === Callytics 통합 분석 시작 ===
+2025-06-19 17:25:56,542 - __main__ - INFO - 통합 분석기 초기화 중...
+2025-06-19 17:25:59,672 - src.db.manager - INFO - 데이터베이스 초기화 완료
+2025-06-19 17:25:59,672 - src.integrated_analyzer - INFO - 통합 분석기 초기화 완료
+2025-06-19 17:25:59,672 - __main__ - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:25:59,672 - src.integrated_analyzer - INFO - 상담 분석 시작: audio/40186.wav
+2025-06-19 17:25:59,672 - src.integrated_analyzer - INFO - 1단계: 오디오 처리 시작
+2025-06-19 17:26:01,442 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _speechbrain_save
+2025-06-19 17:26:01,443 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _speechbrain_load
+2025-06-19 17:26:01,443 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for save
+2025-06-19 17:26:01,443 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for load
+2025-06-19 17:26:01,803 - speechbrain.utils.quirks - INFO - Applied quirks (see `speechbrain.utils.quirks`): [allow_tf32, disable_jit_profiling]
+2025-06-19 17:26:01,803 - speechbrain.utils.quirks - INFO - Excluded quirks specified by the `SB_DISABLE_QUIRKS` environment (comma-separated list): []
+2025-06-19 17:26:01,803 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint save hook for _save
+2025-06-19 17:26:01,803 - speechbrain.utils.checkpoints - DEBUG - Registered checkpoint load hook for _recover
+2025-06-19 17:26:02,839 - datasets - INFO - PyTorch version 2.5.1 available.
+2025-06-19 17:27:36,392 - faster_whisper - INFO - Processing audio with duration 00:00.996
+2025-06-19 17:27:37,319 - faster_whisper - INFO - Processing audio with duration 00:02.430
+2025-06-19 17:27:38,258 - faster_whisper - INFO - Processing audio with duration 00:01.418
+2025-06-19 17:27:39,177 - faster_whisper - INFO - Processing audio with duration 00:00.506
+2025-06-19 17:27:40,042 - faster_whisper - INFO - Processing audio with duration 00:02.194
+2025-06-19 17:27:40,962 - faster_whisper - INFO - Processing audio with duration 00:04.725
+2025-06-19 17:27:42,109 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:27:50,856 - faster_whisper - INFO - Processing audio with duration 00:00.253
+2025-06-19 17:27:51,722 - faster_whisper - INFO - Processing audio with duration 00:00.051
+2025-06-19 17:27:52,692 - faster_whisper - INFO - Processing audio with duration 00:00.135
+2025-06-19 17:28:02,931 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:28:05,504 - faster_whisper - INFO - Processing audio with duration 00:04.911
+2025-06-19 17:28:06,507 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:28:07,348 - faster_whisper - INFO - Processing audio with duration 00:03.476
+2025-06-19 17:28:08,304 - faster_whisper - INFO - Processing audio with duration 00:02.092
+2025-06-19 17:28:09,233 - faster_whisper - INFO - Processing audio with duration 00:11.492
+2025-06-19 17:28:10,515 - faster_whisper - INFO - Processing audio with duration 00:01.755
+2025-06-19 17:28:11,441 - faster_whisper - INFO - Processing audio with duration 00:02.109
+2025-06-19 17:28:12,337 - faster_whisper - INFO - Processing audio with duration 00:01.704
+2025-06-19 17:28:13,262 - faster_whisper - INFO - Processing audio with duration 00:00.540
+2025-06-19 17:28:14,117 - faster_whisper - INFO - Processing audio with duration 00:01.299
+2025-06-19 17:28:15,099 - faster_whisper - INFO - Processing audio with duration 00:04.489
+2025-06-19 17:28:16,070 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:28:17,798 - faster_whisper - INFO - Processing audio with duration 00:06.834
+2025-06-19 17:28:18,909 - faster_whisper - INFO - Processing audio with duration 00:01.046
+2025-06-19 17:28:19,770 - faster_whisper - INFO - Processing audio with duration 00:02.464
+2025-06-19 17:28:20,693 - faster_whisper - INFO - Processing audio with duration 00:00.641
+2025-06-19 17:28:22,558 - faster_whisper - INFO - Processing audio with duration 00:00.084
+2025-06-19 17:28:26,746 - faster_whisper - INFO - Processing audio with duration 00:00.101
+2025-06-19 17:28:31,127 - faster_whisper - INFO - Processing audio with duration 00:01.569
+2025-06-19 17:28:31,981 - faster_whisper - INFO - Processing audio with duration 00:00.219
+2025-06-19 17:28:32,822 - faster_whisper - INFO - Processing audio with duration 00:00.641
+2025-06-19 17:28:33,549 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:28:37,303 - faster_whisper - INFO - Processing audio with duration 00:08.286
+2025-06-19 17:28:38,410 - faster_whisper - INFO - Processing audio with duration 00:00.017
+2025-06-19 17:28:44,467 - faster_whisper - INFO - Processing audio with duration 00:00.034
+2025-06-19 17:28:51,065 - faster_whisper - INFO - Processing audio with duration 00:00.101
+2025-06-19 17:28:59,112 - faster_whisper - INFO - Processing audio with duration 00:00.945
+2025-06-19 17:29:01,301 - faster_whisper - INFO - Processing audio with duration 00:02.295
+2025-06-19 17:29:02,242 - faster_whisper - INFO - Processing audio with duration 00:00.506
+2025-06-19 17:29:03,081 - faster_whisper - INFO - Processing audio with duration 00:01.367
+2025-06-19 17:29:03,944 - faster_whisper - INFO - Processing audio with duration 00:07.239
+2025-06-19 17:29:04,910 - faster_whisper - INFO - Processing audio with duration 00:01.671
+2025-06-19 17:29:05,827 - faster_whisper - INFO - Processing audio with duration 00:00.489
+2025-06-19 17:29:06,627 - faster_whisper - INFO - Processing audio with duration 00:00.979
+2025-06-19 17:29:07,309 - src.integrated_analyzer - INFO - 2단계: 상담 내용 분석 시작
+2025-06-19 17:29:07,309 - src.integrated_analyzer - INFO - 3단계: 결과 통합
+2025-06-19 17:29:07,309 - src.integrated_analyzer - INFO - 4단계: 데이터베이스 저장
+2025-06-19 17:29:07,326 - src.db.manager - INFO - 상담 분석 결과 저장 완료: test_consultation_1750321559
+2025-06-19 17:29:07,509 - src.integrated_analyzer - INFO - 데이터베이스 저장 완료
+2025-06-19 17:29:07,509 - src.integrated_analyzer - INFO - 상담 분석 완료: 33개 발화, 9개 분석 항목
+2025-06-19 17:29:07,509 - __main__ - INFO - === 분석 결과 ===
+2025-06-19 17:29:07,509 - __main__ - INFO - 상담 ID: test_consultation_1750321559
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 수: 33
+2025-06-19 17:29:07,509 - __main__ - INFO - 처리 시간: 187.84초
+2025-06-19 17:29:07,509 - __main__ - INFO - === 상담 분석 결과 ===
+2025-06-19 17:29:07,509 - __main__ - INFO - 수집기관: Unknown
+2025-06-19 17:29:07,509 - __main__ - INFO - 업무 유형: 그 외 업무유형
+2025-06-19 17:29:07,509 - __main__ - INFO - 분류 유형: 상담 주제
+2025-06-19 17:29:07,509 - __main__ - INFO - 세부 분류: 기타
+2025-06-19 17:29:07,509 - __main__ - INFO - 상담 주제: Unknown
+2025-06-19 17:29:07,509 - __main__ - INFO - 상담 요건: Unknown
+2025-06-19 17:29:07,509 - __main__ - INFO - 상담 결과: 미흡
+2025-06-19 17:29:07,509 - __main__ - INFO - === 발화 내용 요약 ===
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 1: 고객 -  일상의 즐거운...
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 2: 상담사 -  변화, LGO 플러스 네임입니다....
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 3: 상담사 -  뭐 좀 물어보려구요....
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 4: 상담사 -  네...
+2025-06-19 17:29:07,509 - __main__ - INFO - 발화 5: 상담사 -  제가 연체가 상큼 얼마나 썼나요?...
+2025-06-19 17:29:07,509 - __main__ - INFO - ... 외 28개 발화
+2025-06-19 17:29:07,509 - __main__ - INFO - === 분석 통계 ===
+2025-06-19 17:29:07,509 - __main__ - INFO - 전체 상담 수: 2
+2025-06-19 17:29:07,509 - __main__ - INFO - 전체 발화 수: 66
+2025-06-19 17:29:07,509 - __main__ - INFO - 평균 처리 시간: 169.93초
+2025-06-19 17:29:07,509 - __main__ - INFO - === 분석 완료 ===

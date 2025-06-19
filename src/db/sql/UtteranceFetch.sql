@@ -1,0 +1,1 @@
+SELECT * FROM utterances WHERE audio_properties_id = ? ORDER BY start_time 

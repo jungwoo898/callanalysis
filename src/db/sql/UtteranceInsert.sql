@@ -1,9 +1,9 @@
-INSERT INTO Utterance (FileID,
-                       Speaker,
-                       Sequence,
-                       StartTime,
-                       EndTime,
-                       Content,
-                       Sentiment,
-                       Profane)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO utterances (
+    audio_properties_id,
+    speaker,
+    start_time,
+    end_time,
+    text,
+    confidence,
+    created_at
+) VALUES (?, ?, ?, ?, ?, ?, datetime('now'));

@@ -1,7 +1,7 @@
 # Standard library imports
 import os
 import wave
-from typing import List, Dict, Annotated, Union, Tuple
+from typing import List, Dict, Annotated, Union, Tuple, Any
 
 # Related third-party imports
 import nltk
@@ -705,6 +705,57 @@ class Audio:
             float(loudness),
             eq_properties_converted
         )
+
+    def extract_properties(self) -> Dict[str, Any]:
+        """
+        Extract audio properties in a dictionary format for database storage.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing audio properties for database insertion.
+        """
+        try:
+            # Get file size
+            file_size = os.path.getsize(self.audio_path)
+            
+            # Get basic properties
+            file_name = os.path.basename(self.audio_path)
+            file_path = os.path.abspath(self.audio_path)
+            
+            # Get bit depth and channels
+            bit_depth = None
+            if self.extension == ".wav":
+                with wave.open(self.audio_path, 'r') as wav_file:
+                    bit_depth = wav_file.getsampwidth() * 8
+                    channels = wav_file.getnchannels()
+            else:
+                info = sf.info(self.audio_path)
+                channels = info.channels
+            
+            return {
+                "file_name": file_name,
+                "file_path": file_path,
+                "duration": float(self.duration),
+                "sample_rate": int(self.rate),
+                "channels": int(channels) if channels is not None else 1,
+                "bit_depth": int(bit_depth) if bit_depth is not None else None,
+                "format": self.extension,
+                "file_size": file_size
+            }
+        except Exception as e:
+            print(f"오디오 속성 추출 오류: {e}")
+            # 기본값 반환
+            return {
+                "file_name": os.path.basename(self.audio_path),
+                "file_path": os.path.abspath(self.audio_path),
+                "duration": 0.0,
+                "sample_rate": 0,
+                "channels": 1,
+                "bit_depth": None,
+                "format": self.extension,
+                "file_size": 0
+            }
 
 
 if __name__ == "__main__":

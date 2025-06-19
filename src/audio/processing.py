@@ -3,7 +3,7 @@ import os
 import re
 import json
 from io import TextIOWrapper
-from typing import Annotated, Optional, Tuple, List, Dict
+from typing import Annotated, Optional, Tuple, List, Dict, Any
 
 # Related third party imports
 import torch
@@ -212,7 +212,7 @@ class AudioProcessor:
 
         sound = AudioSegment.from_file(self.audio_path)
         adjusted_audio = sound + change_in_db
-        adjusted_audio_path = os.path.join(self.temp_dir, "adjusted_volume.wav")
+        adjusted_audio_path = os.path.join(self.temp_dir, "adjusted_file.wav")
         adjusted_audio.export(adjusted_audio_path, format="wav")
         return adjusted_audio_path
 
@@ -240,14 +240,14 @@ class AudioProcessor:
             fade_out_duration: Annotated[float, "Fade-out duration in seconds"]
     ) -> Annotated[str, "Path to faded audio file"]:
         """
-        Apply fade-in and fade-out effects to the audio file.
+        Apply fade-in and fade-out effects to the audio.
 
         Parameters
         ----------
         fade_in_duration : float
-            Duration of the fade-in effect in seconds.
+            Duration of fade-in effect in seconds.
         fade_out_duration : float
-            Duration of the fade-out effect in seconds.
+            Duration of fade-out effect in seconds.
 
         Returns
         -------
@@ -257,7 +257,7 @@ class AudioProcessor:
         Examples
         --------
         >>> processor = AudioProcessor("example.wav")
-        >>> faded_path = processor.fade_in_out(1.0, 2.0)
+        >>> faded_path = processor.fade_in_out(1.0, 1.0)
         >>> isinstance(faded_path, str)
         True
         """
@@ -268,7 +268,7 @@ class AudioProcessor:
 
         sound = AudioSegment.from_file(self.audio_path)
         faded_audio = sound.fade_in(fade_in_duration * 1000).fade_out(fade_out_duration * 1000)
-        faded_audio_path = os.path.join(self.temp_dir, "faded_audio.wav")
+        faded_audio_path = os.path.join(self.temp_dir, "faded_file.wav")
         faded_audio.export(faded_audio_path, format="wav")
         return faded_audio_path
 
@@ -276,12 +276,12 @@ class AudioProcessor:
             self, other_audio_path: Annotated[str, "Path to other audio file"]
     ) -> Annotated[str, "Path to merged audio file"]:
         """
-        Merge the current audio file with another audio file.
+        Merge the current audio with another audio file.
 
         Parameters
         ----------
         other_audio_path : str
-            Path to the other audio file.
+            Path to the other audio file to merge with.
 
         Returns
         -------
@@ -290,8 +290,8 @@ class AudioProcessor:
 
         Examples
         --------
-        >>> processor = AudioProcessor("example.wav")
-        >>> merged_path = processor.merge_audio("other_example.wav")
+        >>> processor = AudioProcessor("example1.wav")
+        >>> merged_path = processor.merge_audio("example2.wav")
         >>> isinstance(merged_path, str)
         True
         """
@@ -301,7 +301,7 @@ class AudioProcessor:
         sound1 = AudioSegment.from_file(self.audio_path)
         sound2 = AudioSegment.from_file(other_audio_path)
         merged_audio = sound1 + sound2
-        merged_audio_path = os.path.join(self.temp_dir, "merged_audio.wav")
+        merged_audio_path = os.path.join(self.temp_dir, "merged_file.wav")
         merged_audio.export(merged_audio_path, format="wav")
         return merged_audio_path
 
@@ -309,7 +309,7 @@ class AudioProcessor:
             self, chunk_duration: Annotated[float, "Chunk duration in seconds"]
     ) -> Annotated[List[str], "Paths to audio chunks"]:
         """
-        Split the audio file into chunks of the specified duration.
+        Split the audio file into chunks of a specified duration.
 
         Parameters
         ----------
@@ -319,13 +319,13 @@ class AudioProcessor:
         Returns
         -------
         List[str]
-            Paths to the generated audio chunks.
+            List of paths to the audio chunks.
 
         Examples
         --------
         >>> processor = AudioProcessor("example.wav")
-        >>> chunks = processor.split_audio(10.0)
-        >>> isinstance(chunks, list)
+        >>> chunk_paths = processor.split_audio(30.0)
+        >>> isinstance(chunk_paths, list)
         True
         """
         if not isinstance(chunk_duration, (int, float)):
@@ -333,10 +333,13 @@ class AudioProcessor:
 
         sound = AudioSegment.from_file(self.audio_path)
         chunk_paths = []
+        total_duration = len(sound)
+        chunk_duration_ms = chunk_duration * 1000
 
-        for i in range(0, len(sound), int(chunk_duration * 1000)):
-            chunk = sound[i:i + int(chunk_duration * 1000)]
-            chunk_path = os.path.join(self.temp_dir, f"chunk_{i // 1000}.wav")
+        for i, start in enumerate(range(0, total_duration, int(chunk_duration_ms))):
+            end = min(start + int(chunk_duration_ms), total_duration)
+            chunk = sound[start:end]
+            chunk_path = os.path.join(self.temp_dir, f"chunk_{i}.wav")
             chunk.export(chunk_path, format="wav")
             chunk_paths.append(chunk_path)
 
@@ -347,343 +350,499 @@ class AudioProcessor:
             manifest_path: Annotated[str, "Manifest file path"]
     ) -> None:
         """
-        Create a manifest file containing metadata about the audio file.
+        Create a manifest file containing metadata about the audio.
 
         Parameters
         ----------
         manifest_path : str
-            Path to the manifest file.
+            Path where the manifest file should be created.
 
         Examples
         --------
         >>> processor = AudioProcessor("example.wav")
         >>> processor.create_manifest("manifest.json")
         """
-        duration = self.get_duration()
-        manifest_entry = {
-            "audio_filepath": self.audio_path,
-            "offset": 0,
-            "duration": duration,
-            "label": "infer",
-            "text": "-",
-            "rttm_filepath": None,
-            "uem_filepath": None
+        if not isinstance(manifest_path, str):
+            raise TypeError("Expected 'manifest_path' to be a string.")
+
+        sound = AudioSegment.from_file(self.audio_path)
+        manifest = {
+            "audio_path": self.audio_path,
+            "duration": len(sound) / 1000.0,
+            "channels": sound.channels,
+            "sample_rate": sound.frame_rate,
+            "frame_width": sound.sample_width,
+            "file_size": os.path.getsize(self.audio_path)
         }
-        with open(manifest_path, 'w', encoding='utf-8') as f:  # type: TextIOWrapper
-            json.dump(manifest_entry, f)
+
+        with open(manifest_path, 'w') as f:
+            json.dump(manifest, f, indent=2)
+
+
+class IntegratedAudioProcessor:
+    """
+    통합 오디오 프로세서 - 화자 분리, 음성 인식, 구두점 복원을 포함한 완전한 파이프라인
+    """
+    
+    def __init__(
+        self,
+        language: str = "ko",
+        device: str = "auto",
+        whisper_model: str = "base",
+        diarization_auth_token: Optional[str] = None
+    ):
+        """
+        통합 오디오 프로세서 초기화
+        
+        Parameters
+        ----------
+        language : str
+            처리할 언어 (기본값: "ko")
+        device : str
+            사용할 디바이스 (cpu/gpu/auto)
+        whisper_model : str
+            Whisper 모델 크기 (tiny/base/small/medium/large)
+        diarization_auth_token : str, optional
+            HuggingFace 인증 토큰 (화자 분리용)
+        """
+        self.language = language
+        self.device = self._determine_device(device)
+        self.whisper_model = whisper_model
+        self.diarization_auth_token = diarization_auth_token
+        
+        # 컴포넌트 초기화
+        self.transcriber = Transcriber(
+            model_name=whisper_model,
+            device=self.device,
+            compute_type='float16' if self.device == 'cuda' else 'int8'
+        )
+        
+        self.punctuation_restorer = PunctuationRestorer(language=language)
+        
+        # 화자 분리 모델은 필요시에만 로드
+        self.diarization_model = None
+    
+    def _determine_device(self, device: str) -> str:
+        """디바이스 결정"""
+        if device == "auto":
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        return device
+    
+    def _load_diarization_model(self):
+        """화자 분리 모델 로드"""
+        if self.diarization_model is None:
+            try:
+                # Windows 환경에서 signal 모듈 패치
+                import signal
+                if not hasattr(signal, 'SIGKILL'):
+                    signal.SIGKILL = signal.SIGTERM
+                if not hasattr(signal, 'SIGUSR1'):
+                    signal.SIGUSR1 = signal.SIGTERM
+                if not hasattr(signal, 'SIGUSR2'):
+                    signal.SIGUSR2 = signal.SIGTERM
+                
+                # Windows 환경에서 pyannote.audio 안정성을 위한 환경 변수 설정
+                import os
+                os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+                os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+                
+                from pyannote.audio import Pipeline
+                if self.diarization_auth_token:
+                    self.diarization_model = Pipeline.from_pretrained(
+                        "pyannote/speaker-diarization-3.1",
+                        use_auth_token=self.diarization_auth_token
+                    )
+                    print("✅ 화자 분리 모델 로드 완료")
+                else:
+                    print("⚠️ 화자 분리 토큰이 없어 기본 음성 인식만 수행합니다.")
+                    self.diarization_model = None
+            except ImportError:
+                print("⚠️ pyannote.audio가 설치되지 않아 화자 분리를 건너뜁니다.")
+                self.diarization_model = None
+            except Exception as e:
+                print(f"⚠️ 화자 분리 모델 로드 실패: {e}")
+                print("기본 음성 인식만 수행합니다.")
+                self.diarization_model = None
+    
+    def process_audio(self, audio_path: str) -> List[Dict[str, Any]]:
+        """
+        오디오 파일을 처리하여 화자별 발화 내용을 반환
+        
+        Parameters
+        ----------
+        audio_path : str
+            처리할 오디오 파일 경로
+            
+        Returns
+        -------
+        List[Dict[str, Any]]
+            화자별 발화 내용 리스트
+        """
+        try:
+            print(f"오디오 파일 처리 시작: {audio_path}")
+            
+            # 0. 오디오 전처리 (노이즈 제거, 음성 강화)
+            print("오디오 전처리 수행 중...")
+            processed_audio_path = self._preprocess_audio(audio_path)
+            
+            # 1. 화자 분리 수행
+            self._load_diarization_model()
+            
+            if self.diarization_model:
+                # 화자 분리 + 음성 인식
+                utterances = self._process_with_diarization(processed_audio_path)
+            else:
+                # 기본 음성 인식만
+                utterances = self._process_without_diarization(processed_audio_path)
+            
+            print(f"처리 완료: {len(utterances)}개 발화")
+            return utterances
+            
+        except Exception as e:
+            print(f"오디오 처리 중 오류 발생: {e}")
+            return []
+    
+    def _preprocess_audio(self, audio_path: str) -> str:
+        """오디오 전처리 (노이즈 제거, 음성 강화)"""
+        try:
+            # 임시 파일 경로
+            temp_dir = ".temp"
+            os.makedirs(temp_dir, exist_ok=True)
+            processed_path = os.path.join(temp_dir, "processed_audio.wav")
+            
+            # pydub을 사용한 기본 전처리
+            audio = AudioSegment.from_file(audio_path)
+            
+            # 1. 모노 변환 (화자 분리 성능 향상)
+            if audio.channels > 1:
+                audio = audio.set_channels(1)
+            
+            # 2. 샘플링 레이트 정규화 (16kHz)
+            if audio.frame_rate != 16000:
+                audio = audio.set_frame_rate(16000)
+            
+            # 3. 볼륨 정규화
+            audio = audio.normalize()
+            
+            # 4. 기본 노이즈 제거 (고주파/저주파 필터링)
+            # 고주파 노이즈 제거 (8kHz 이상)
+            audio = audio.high_pass_filter(8000)
+            # 저주파 노이즈 제거 (80Hz 이하)
+            audio = audio.low_pass_filter(80)
+            
+            # 처리된 오디오 저장
+            audio.export(processed_path, format="wav")
+            
+            print("✅ 오디오 전처리 완료")
+            return processed_path
+            
+        except Exception as e:
+            print(f"⚠️ 오디오 전처리 실패, 원본 사용: {e}")
+            return audio_path
+    
+    def _process_with_diarization(self, audio_path: str) -> List[Dict[str, Any]]:
+        """화자 분리를 포함한 처리"""
+        try:
+            # 화자 분리 수행
+            print("화자 분리 수행 중...")
+            diarization = self.diarization_model(audio_path)
+            
+            utterances = []
+            speaker_mapping = {}  # 화자 ID를 고객/상담사로 매핑
+            speaker_count = 0
+            
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
+                start_time = turn.start
+                end_time = turn.end
+                
+                # 화자 ID를 고객/상담사로 매핑
+                if speaker not in speaker_mapping:
+                    if speaker_count == 0:
+                        speaker_mapping[speaker] = "고객"
+                    else:
+                        speaker_mapping[speaker] = "상담사"
+                    speaker_count += 1
+                
+                # 해당 구간 음성 인식
+                text, info = self.transcriber.transcribe(
+                    audio_path,
+                    language=self.language,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+                
+                if text.strip():
+                    # 구두점 복원 적용
+                    restored_text = self.punctuation_restorer.restore_punctuation_simple(text)
+                    
+                    utterances.append({
+                        'speaker': speaker_mapping[speaker],
+                        'start': start_time,
+                        'end': end_time,
+                        'text': restored_text,
+                        'confidence': info.get('confidence', 0.0)
+                    })
+            
+            return utterances
+        except Exception as e:
+            print(f"화자 분리 처리 중 오류: {e}")
+            # 화자 분리 실패 시 기본 처리로 폴백
+            return self._process_without_diarization(audio_path)
+    
+    def _process_without_diarization(self, audio_path: str) -> List[Dict[str, Any]]:
+        """화자 분리 없이 기본 처리"""
+        try:
+            # 전체 음성 인식
+            print("기본 음성 인식 수행 중...")
+            text, info = self.transcriber.transcribe(
+                audio_path,
+                language=self.language
+            )
+            
+            if text.strip():
+                # 구두점 복원 적용
+                restored_text = self.punctuation_restorer.restore_punctuation_simple(text)
+                
+                return [{
+                    'speaker': 'Unknown',
+                    'start': 0.0,
+                    'end': info.get('duration', 0.0),
+                    'text': restored_text,
+                    'confidence': info.get('confidence', 0.0)
+                }]
+            
+            return []
+        except Exception as e:
+            print(f"기본 음성 인식 중 오류: {e}")
+            return []
 
 
 class Transcriber:
     """
-    A class for transcribing audio files using a pre-trained Whisper model.
+    A class to handle audio transcription using the Faster Whisper model.
 
     Parameters
     ----------
-    model_name : str, optional
-        Name of the model to load. Defaults to 'large-v3'.
-    device : str, optional
-        Device to use for model inference ('cpu' or 'cuda'). Defaults to 'cpu'.
-    compute_type : str, optional
-        Data type for model computation ('int8', 'float16', etc.). Defaults to 'int8'.
+    model_name : str
+        Name of the model to load.
+    device : str
+        Device to use for model inference.
+    compute_type : str
+        Data type for model computation, e.g., 'int8' or 'float16'.
 
     Attributes
     ----------
     model : faster_whisper.WhisperModel
-        Loaded Whisper model for transcription.
-    device : str
-        Device used for inference.
-
-    Methods
-    -------
-    transcribe(audio_path, language=None, suppress_numerals=False)
-        Transcribes the audio file into text.
+        The loaded Whisper model.
     """
 
     def __init__(
             self,
-            model_name: Annotated[str, "Name of the model to load"] = 'large-v3',
-            device: Annotated[str, "Device to use for model inference"] = 'cpu',
-            compute_type: Annotated[str, "Data type for model computation, e.g., 'int8' or 'float16'"] = 'int8'
+            model_name: str = 'large-v3',
+            device: str = 'cpu',
+            compute_type: str = 'int8'
     ) -> None:
         if not isinstance(model_name, str):
-            raise TypeError("Expected 'model_name' to be of type str")
+            raise TypeError("Expected 'model_name' to be a string.")
         if not isinstance(device, str):
-            raise TypeError("Expected 'device' to be of type str")
+            raise TypeError("Expected 'device' to be a string.")
         if not isinstance(compute_type, str):
-            raise TypeError("Expected 'compute_type' to be of type str")
+            raise TypeError("Expected 'compute_type' to be a string.")
 
-        self.device = device
         self.model = faster_whisper.WhisperModel(
-            model_name, device=device, compute_type=compute_type
+            model_name,
+            device=device,
+            compute_type=compute_type
         )
 
     def transcribe(
             self,
-            audio_path: Annotated[str, "Path to the audio file to transcribe"],
-            language: Annotated[Optional[str], "Language code for transcription, e.g., 'en' for English"] = None,
-            suppress_numerals: Annotated[bool, "Whether to suppress numerals in the transcription"] = False
-    ) -> Annotated[Tuple[str, dict], "Transcription text and additional information"]:
+            audio_path: str,
+            language: Optional[str] = None,
+            start_time: Optional[float] = None,
+            end_time: Optional[float] = None
+    ) -> tuple:
         """
-        Transcribe an audio file into text.
-
-        Parameters
-        ----------
-        audio_path : str
-            Path to the audio file.
-        language : str, optional
-            Language code for transcription (e.g., 'en' for English).
-        suppress_numerals : bool, optional
-            Whether to suppress numerals in the transcription. Defaults to False.
-
-        Returns
-        -------
-        Tuple[str, dict]
-            The transcribed text and additional transcription metadata.
-
-        Examples
-        --------
-        >>> transcriber = Transcriber()
-        >>> text, information = transcriber.transcribe("example.wav")
-        >>> isinstance(text, str)
-        True
-        >>> isinstance(info, dict)
-        True
+        Transcribe an audio file using the Whisper model.
         """
         if not isinstance(audio_path, str):
-            raise TypeError("Expected 'audio_path' to be of type str")
+            raise TypeError("Expected 'audio_path' to be a string.")
         if language is not None and not isinstance(language, str):
-            raise TypeError("Expected 'language' to be of type str if provided")
-        if not isinstance(suppress_numerals, bool):
-            raise TypeError("Expected 'suppress_numerals' to be of type bool")
+            raise TypeError("Expected 'language' to be a string or None.")
 
-        audio_waveform = faster_whisper.decode_audio(audio_path)
-        suppress_tokens = [-1]
-        if suppress_numerals:
-            suppress_tokens = TokenizerUtils.find_numeral_symbol_tokens(
-                self.model.hf_tokenizer
-            )
+        # 시간 범위가 지정된 경우 오디오를 자르기
+        if start_time is not None or end_time is not None:
+            processor = AudioProcessor(audio_path)
+            if start_time is None:
+                start_time = 0.0
+            if end_time is None:
+                end_time = processor.get_duration()
+            audio_path = processor.trim_audio(start_time, end_time)
 
-        transcript_segments, info = self.model.transcribe(
-            audio_waveform,
-            language=language,
-            suppress_tokens=suppress_tokens,
-            without_timestamps=True,
-            vad_filter=True,
-            log_progress=True,
+        segments, info = self.model.transcribe(
+            audio_path,
+            language=language
         )
 
-        transcript = ''.join(segment.text for segment in transcript_segments)
-        info = vars(info)
-
-        if self.device == 'cuda':
-            del self.model
-            torch.cuda.empty_cache()
-
-        print(transcript, info)
-
-        return transcript, info
+        # 텍스트 조합
+        text = " ".join([segment.text for segment in segments])
+        # 추가 정보 구성
+        result_info = {
+            'language': info.language,
+            'language_probability': info.language_probability,
+            'duration': info.duration,
+            'confidence': info.confidence if hasattr(info, 'confidence') else 0.0
+        }
+        return text, result_info
 
 
 class PunctuationRestorer:
     """
-    A class for restoring punctuation in transcribed text.
+    A class to restore punctuation in transcribed text.
 
     Parameters
     ----------
-    language : str, optional
-        Language for punctuation restoration. Defaults to 'en'.
+    language : str
+        Language for punctuation restoration.
 
     Attributes
     ----------
-    language : str
-        Language used for punctuation restoration.
-    punct_model : PunctuationModel
-        Model for predicting punctuation.
-    supported_languages : List[str]
-        List of languages supported by the model.
-
-    Methods
-    -------
-    restore_punctuation(word_speaker_mapping)
-        Restores punctuation in the provided text based on word mappings.
+    model : PunctuationModel
+        The punctuation restoration model.
     """
 
     def __init__(self, language: Annotated[str, "Language for punctuation restoration"] = 'en') -> None:
+        if not isinstance(language, str):
+            raise TypeError("Expected 'language' to be a string.")
+
         self.language = language
-        self.punct_model = PunctuationModel(model="kredor/punctuate-all")
-        self.supported_languages = [
-            "en", "fr", "de", "es", "it", "nl", "pt", "bg", "pl", "cs", "sk", "sl", "ko"
-        ]
-        # 한국어 구두점 규칙 확장
-        self.korean_punct_rules = {
-            "sentence_end": ".!?",
-            "pause": ",;:",
-            "quotation": "\"'",
-            "brackets": "()[]{}",
-            "special": "-~…",
-            "korean_quotes": """''""",  # 한국어 전용 따옴표
-            "korean_brackets": "「」『』〈〉《》"  # 한국어 전용 괄호
-        }
+        self.model = PunctuationModel()
 
     def restore_punctuation(
             self, word_speaker_mapping: Annotated[List[Dict], "List of word-speaker mappings"]
     ) -> Annotated[List[Dict], "Word mappings with restored punctuation"]:
         """
-        Restore punctuation for transcribed text.
+        Restore punctuation in the transcribed text.
 
         Parameters
         ----------
         word_speaker_mapping : List[Dict]
-            List of dictionaries containing word and speaker mappings.
+            List of dictionaries containing word-speaker mappings.
 
         Returns
         -------
         List[Dict]
-            Updated list with punctuation restored.
+            Word mappings with restored punctuation.
 
         Examples
         --------
         >>> restorer = PunctuationRestorer()
-        >>> mapping = [{"text": "hello"}, {"text": "world"}]
-        >>> result = restorer.restore_punctuation(mapping)
+        >>> mappings = [{"word": "hello", "speaker": "A"}, {"word": "world", "speaker": "B"}]
+        >>> result = restorer.restore_punctuation(mappings)
         >>> isinstance(result, list)
         True
-        >>> "text" in result[0]
-        True
         """
-        if self.language not in self.supported_languages:
-            print(f"Punctuation restoration is not available for {self.language} language.")
-            return word_speaker_mapping
+        if not isinstance(word_speaker_mapping, list):
+            raise TypeError("Expected 'word_speaker_mapping' to be a list.")
 
-        if self.language == "ko":
+        if self.language == 'ko':
             return self._restore_korean_punctuation(word_speaker_mapping)
 
-        words_list = [word_dict["text"] for word_dict in word_speaker_mapping]
-        labeled_words = self.punct_model.predict(words_list)
+        # 영어 및 기타 언어용 기본 처리
+        text = " ".join([mapping["word"] for mapping in word_speaker_mapping])
+        restored_text = self.model.restore_punctuation(text)
 
-        ending_puncts = ".?!"
-        model_puncts = ".,;:!?"
-        is_acronym = lambda x: re.fullmatch(r"\b(?:[a-zA-Z]\.){2,}", x)
+        # 단어별로 분리하여 매핑 복원
+        restored_words = restored_text.split()
+        result = []
 
-        for word_dict, labeled_tuple in zip(word_speaker_mapping, labeled_words):
-            word = word_dict["text"]
-            if (
-                    word
-                    and labeled_tuple[1] in ending_puncts
-                    and (word[-1] not in model_puncts or is_acronym(word))
-            ):
-                word += labeled_tuple[1]
-                word = word.rstrip(".") if word.endswith("..") else word
-                word_dict["text"] = word
+        for i, mapping in enumerate(word_speaker_mapping):
+            if i < len(restored_words):
+                result.append({
+                    "word": restored_words[i],
+                    "speaker": mapping["speaker"]
+                })
 
-        return word_speaker_mapping
+        return result
 
     def _restore_korean_punctuation(
             self, word_speaker_mapping: Annotated[List[Dict], "List of word-speaker mappings"]
     ) -> Annotated[List[Dict], "Word mappings with restored Korean punctuation"]:
         """
-        한국어 구두점 복원을 위한 메서드
+        Restore Korean punctuation in the transcribed text.
 
         Parameters
         ----------
         word_speaker_mapping : List[Dict]
-            단어와 화자 매핑 정보가 담긴 리스트
+            List of dictionaries containing word-speaker mappings.
 
         Returns
         -------
         List[Dict]
-            구두점이 복원된 단어 매핑 리스트
+            Word mappings with restored Korean punctuation.
         """
-        # 문장 종결 패턴 확장
-        sentence_end_patterns = [
-            # 기본 종결 어미
-            r'다\.$', r'까\?$', r'요\.$', r'니다\.$', r'습니다\.$',
-            r'어요\.$', r'아요\.$', r'네요\.$', r'군요\.$', r'죠\.$',
-            r'다!$', r'요!$', r'니다!$', r'습니다!$', r'어요!$',
-            r'아요!$', r'네요!$', r'군요!$', r'죠!$',
-            # 추가 종결 어미
-            r'지\.$', r'잖아\.$', r'잖아요\.$', r'네\.$', r'네\?$', r'어\.$',
-            r'겠어요\?$', r'겠습니까\?$', r'겠네요\?$', r'겠죠\?$', 
-            r'다구요\.$', r'라면서\.$', r'라지요\?$', r'라네요\.$',
-            # 감탄/놀람 표현
-            r'다니!$', r'다니\?$', r'다니요!$', r'다니요\?$',
-            r'군요!$', r'군요\?$', r'구나!$', r'구나\?$',
-            # 의문/추측 표현
-            r'을까요\?$', r'을까\?$', r'을래요\?$', r'을래\?$',
-            r'겠어요\?$', r'겠어\?$', r'겠죠\?$', r'겠지\?$',
-            # 부탁/청유 표현
-            r'주세요\.$', r'주시죠\.$', r'주시지요\.$',
-            r'시죠\.$', r'시지요\.$', r'시다\.$', r'시다!$',
-            # 인용 표현
-            r'라고요\.$', r'라고\?$', r'라고요\?$', r'라고!$',
-            r'라고요!$', r'라구요\.$', r'라구\?$', r'라구요\?$'
-        ]
+        # 한국어 텍스트 조합
+        text = " ".join([mapping["word"] for mapping in word_speaker_mapping])
+        
+        # 한국어 구두점 복원 규칙 적용
+        restored_text = self._apply_korean_punctuation_rules(text)
+        
+        # 단어별로 분리하여 매핑 복원
+        restored_words = restored_text.split()
+        result = []
+        
+        for i, mapping in enumerate(word_speaker_mapping):
+            if i < len(restored_words):
+                result.append({
+                    "word": restored_words[i],
+                    "speaker": mapping["speaker"]
+                })
+        
+        return result
 
-        # 문장 중간 패턴 확장
-        pause_patterns = [
-            # 접속/전환 표현
-            r'그리고$', r'그래서$', r'하지만$', r'그러나$', r'그런데$',
-            r'왜냐하면$', r'때문에$', r'대해서$', r'위해서$', r'관해서$',
-            r'또한$', r'게다가$', r'더구나$', r'더불어$', r'한편$', 
-            r'반면$', r'오히려$', r'사실$', r'즉$', r'다만$', r'어쨌든$',
-            # 예시/설명 표현
-            r'예를 들어$', r'예컨대$', r'간단히 말해$', r'특히$', r'무엇보다$',
-            # 구어체 전환 어미
-            r'ㄴ데요$', r'긴 한데$', r'말이에요$', r'말이야$',
-            r'거든요$', r'거든$', r'잖아요$', r'잖아$',
-            # 부연 설명 전환
-            r'다시 말해$', r'바꾸어 말하면$', r'한마디로$', r'결국$',
-            r'요약하면$', r'정리하면$', r'말씀드리면$', r'설명드리면$',
-            # 시간/순서 표현
-            r'먼저$', r'다음으로$', r'마지막으로$', r'그 다음$',
-            r'그리고 나서$', r'그 후에$', r'그 전에$', r'그 사이에$',
-            # 조건/가정 표현
-            r'만약$', r'혹시$', r'설령$', r'비록$', r'아무리$',
-            r'아무튼$', r'어쨌든$', r'결과적으로$'
-        ]
-
-        # 인용구 패턴
-        quote_patterns = [
-            r'^["\'「『]',  # 인용구 시작
-            r'["\'」』]$',  # 인용구 종료
-            r'^["\'「『].*["\'」』]$'  # 한 단어 내 인용구
-        ]
-
-        for i, word_dict in enumerate(word_speaker_mapping):
-            word = word_dict["text"]
+    def _apply_korean_punctuation_rules(self, text: str) -> str:
+        """
+        한국어 구두점 복원 규칙 적용
+        
+        Parameters
+        ----------
+        text : str
+            원본 텍스트
             
-            # 문장 종결 구두점 추가
-            if any(re.search(pattern, word) for pattern in sentence_end_patterns):
-                if not any(word.endswith(p) for p in self.korean_punct_rules["sentence_end"]):
-                    # 감탄/놀람 표현은 느낌표, 의문 표현은 물음표 사용
-                    if any(re.search(r'[!?]', pattern) for pattern in sentence_end_patterns if re.search(pattern, word)):
-                        word += "!" if "!" in word else "?"
-                    else:
-                        word += "."
-            
-            # 문장 중간 구두점 추가
-            elif any(re.search(pattern, word) for pattern in pause_patterns):
-                if not any(word.endswith(p) for p in self.korean_punct_rules["pause"]):
-                    word += ","
-            
-            # 인용구 처리
-            if any(re.search(pattern, word) for pattern in quote_patterns):
-                # 인용구 시작만 있는 경우
-                if word.startswith(('"', "'", "「", "『")) and not word.endswith(('"', "'", "」", "』")):
-                    if i < len(word_speaker_mapping) - 1:
-                        next_word = word_speaker_mapping[i + 1]["text"]
-                        if not next_word.endswith(('"', "'", "」", "』")):
-                            word_speaker_mapping[i + 1]["text"] = next_word + "」"
-                # 인용구 종료만 있는 경우
-                elif word.endswith(('"', "'", "」", "』")) and not word.startswith(('"', "'", "「", "『")):
-                    if i > 0:
-                        prev_word = word_speaker_mapping[i - 1]["text"]
-                        if not prev_word.startswith(('"', "'", "「", "『")):
-                            word_speaker_mapping[i - 1]["text"] = "「" + prev_word
+        Returns
+        -------
+        str
+            구두점이 복원된 텍스트
+        """
+        # 기본 구두점 규칙
+        text = re.sub(r'\s+([,.!?])', r'\1', text)  # 구두점 앞 공백 제거
+        text = re.sub(r'([,.!?])\s*', r'\1 ', text)  # 구두점 뒤 공백 추가
+        
+        # 한국어 특화 규칙
+        text = re.sub(r'([가-힣])\s+([이에]다)', r'\1\2', text)  # 조사 연결
+        text = re.sub(r'([가-힣])\s+([을를])', r'\1\2', text)  # 조사 연결
+        
+        return text
 
-            word_dict["text"] = word
-
-        return word_speaker_mapping
+    def restore_punctuation_simple(self, text: str) -> str:
+        """
+        간단한 구두점 복원 (전체 텍스트용)
+        
+        Parameters
+        ----------
+        text : str
+            원본 텍스트
+            
+        Returns
+        -------
+        str
+            구두점이 복원된 텍스트
+        """
+        if self.language == 'ko':
+            return self._apply_korean_punctuation_rules(text)
+        else:
+            # 영어 및 기타 언어용
+            return self.model.restore_punctuation(text)
 
 
 if __name__ == "__main__":

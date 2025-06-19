@@ -1,9 +1,9 @@
 name: "ClusterDiarizer"
 
-num_workers: 1
+num_workers: 2
 sample_rate: 16000
-batch_size: 64
-device: cuda
+batch_size: 32
+device: ${DEVICE:-cuda}
 verbose: True
 
 diarizer:
@@ -60,7 +60,7 @@ diarizer:
       overlap_infer_spk_limit: 5
 
   asr:
-    model_path: stt_en_conformer_ctc_large
+    model_path: stt_ko_conformer_ctc_large
     parameters:
       asr_based_vad: False
       asr_based_vad_threshold: 1.0

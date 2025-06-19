@@ -3,9 +3,12 @@ import re
 import json
 import asyncio
 from typing import Annotated, Optional, Dict, Any, List
+import os
 
 # Related third-party imports
 import yaml
+import openai
+import time
 
 # Local imports
 from src.text.model import LanguageModelManager
@@ -299,6 +302,250 @@ class LLMResultHandler:
         """
         print("Final SSM:", ssm)
         print("LLM Result:", llm_result)
+
+
+class LLMHandler:
+    """
+    A class to handle interactions with OpenAI's GPT models for various text analysis tasks.
+    """
+
+    def __init__(self):
+        """
+        Initializes the LLMHandler with OpenAI API configuration.
+        """
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        
+        openai.api_key = self.api_key
+        self.client = openai.AsyncOpenAI(api_key=self.api_key)
+        
+        # 재시도 설정
+        self.max_retries = 3
+        self.retry_delay = 1
+
+    async def generate(
+            self,
+            task_type: str,
+            user_input: Optional[Any] = None,
+            system_input: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Generates responses for different analysis tasks using OpenAI's GPT models.
+
+        Parameters
+        ----------
+        task_type : str
+            The type of analysis task (e.g., "Classification", "SentimentAnalysis").
+        user_input : Any, optional
+            The user input data for the analysis.
+        system_input : Any, optional
+            Additional system input data (e.g., topics for topic detection).
+
+        Returns
+        -------
+        Dict[str, Any]
+            The generated response from the LLM.
+
+        Raises
+        ------
+        Exception
+            If the API call fails after all retry attempts.
+        """
+        for attempt in range(self.max_retries):
+            try:
+                # API 키 재검증
+                if not self.api_key:
+                    raise ValueError("OpenAI API key is missing")
+                
+                # API 할당량 확인 (간단한 테스트)
+                if attempt == 0:
+                    try:
+                        await self.client.models.list()
+                    except Exception as e:
+                        if "quota" in str(e).lower() or "rate" in str(e).lower():
+                            raise Exception(f"API quota exceeded or rate limited: {e}")
+                
+                # 프롬프트 생성
+                prompt = self._create_prompt(task_type, user_input, system_input)
+                
+                # API 호출
+                response = await self.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": prompt["system"]},
+                        {"role": "user", "content": prompt["user"]}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                
+                # 응답 파싱
+                result = self._parse_response(task_type, response.choices[0].message.content)
+                return result
+                
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    print(f"LLM API call failed after {self.max_retries} attempts: {e}")
+                    # 폴백 응답 반환
+                    return self._get_fallback_response(task_type)
+                
+                print(f"LLM API call attempt {attempt + 1} failed: {e}")
+                await asyncio.sleep(self.retry_delay * (attempt + 1))
+
+    def _create_prompt(self, task_type: str, user_input: Any, system_input: Any) -> Dict[str, str]:
+        """
+        Creates appropriate prompts for different task types.
+        
+        Parameters
+        ----------
+        task_type : str
+            The type of analysis task.
+        user_input : Any
+            The user input data.
+        system_input : Any
+            Additional system input data.
+            
+        Returns
+        -------
+        Dict[str, str]
+            Dictionary containing system and user prompts.
+        """
+        # 기본 시스템 프롬프트
+        system_prompt = "당신은 한국어 음성 대화 분석 전문가입니다. 정확하고 일관된 분석을 제공해주세요."
+        
+        if task_type == "Classification":
+            system_prompt += " 화자 역할을 분류해주세요 (고객/상담원)."
+            user_prompt = f"다음 대화에서 각 화자의 역할을 분류해주세요:\n{user_input}"
+            
+        elif task_type == "SentimentAnalysis":
+            system_prompt += " 감정 분석을 수행해주세요 (긍정/부정/중립)."
+            user_prompt = f"다음 대화의 감정을 분석해주세요:\n{user_input}"
+            
+        elif task_type == "ProfanityWordDetection":
+            system_prompt += " 비속어나 부적절한 표현을 감지해주세요."
+            user_prompt = f"다음 대화에서 비속어나 부적절한 표현을 찾아주세요:\n{user_input}"
+            
+        elif task_type == "Summary":
+            system_prompt += " 대화 내용을 요약해주세요."
+            user_prompt = f"다음 대화를 요약해주세요:\n{user_input}"
+            
+        elif task_type == "ConflictDetection":
+            system_prompt += " 갈등이나 문제 상황을 감지해주세요."
+            user_prompt = f"다음 대화에서 갈등이나 문제 상황이 있는지 확인해주세요:\n{user_input}"
+            
+        elif task_type == "TopicDetection":
+            system_prompt += " 주제를 분류해주세요."
+            user_prompt = f"다음 대화의 주제를 다음 중에서 선택해주세요:\n{system_input}\n\n대화 내용:\n{user_input}"
+            
+        else:
+            system_prompt += " 일반적인 분석을 수행해주세요."
+            user_prompt = f"다음 내용을 분석해주세요:\n{user_input}"
+        
+        return {"system": system_prompt, "user": user_prompt}
+
+    def _parse_response(self, task_type: str, response: str) -> Dict[str, Any]:
+        """
+        Parses the LLM response based on task type.
+        
+        Parameters
+        ----------
+        task_type : str
+            The type of analysis task.
+        response : str
+            The raw response from the LLM.
+            
+        Returns
+        -------
+        Dict[str, Any]
+            Parsed response data.
+        """
+        try:
+            # 기본 파싱 로직
+            if task_type == "Classification":
+                return {"speaker_roles": response}
+            elif task_type == "SentimentAnalysis":
+                return {"sentiment": response}
+            elif task_type == "ProfanityWordDetection":
+                return {"profanity": response}
+            elif task_type == "Summary":
+                return {"summary": response}
+            elif task_type == "ConflictDetection":
+                return {"conflict": "갈등" in response or "문제" in response}
+            elif task_type == "TopicDetection":
+                return {"topic": response}
+            else:
+                return {"result": response}
+        except Exception as e:
+            print(f"Error parsing LLM response: {e}")
+            return self._get_fallback_response(task_type)
+
+    def _get_fallback_response(self, task_type: str) -> Dict[str, Any]:
+        """
+        Provides fallback responses when LLM API fails.
+        
+        Parameters
+        ----------
+        task_type : str
+            The type of analysis task.
+            
+        Returns
+        -------
+        Dict[str, Any]
+            Fallback response data.
+        """
+        fallbacks = {
+            "Classification": {"speaker_roles": "화자 역할 분류 실패"},
+            "SentimentAnalysis": {"sentiment": "중립"},
+            "ProfanityWordDetection": {"profanity": "비속어 감지 실패"},
+            "Summary": {"summary": "요약 생성 실패"},
+            "ConflictDetection": {"conflict": False},
+            "TopicDetection": {"topic": "기타"}
+        }
+        return fallbacks.get(task_type, {"result": "분석 실패"})
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        API 상태를 확인합니다.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            API 상태 정보
+        """
+        try:
+            # API 키 확인
+            if not self.api_key:
+                return {"status": "error", "message": "API 키가 설정되지 않음"}
+            
+            # API 연결 테스트
+            response = asyncio.run(self.client.models.list())
+            
+            return {
+                "status": "healthy",
+                "message": "API 연결 정상",
+                "models_available": len(response.data) if response.data else 0
+            }
+        except Exception as e:
+            return {
+                "status": "error", 
+                "message": f"API 연결 실패: {str(e)}"
+            }
+
+    def get_usage_stats(self) -> Dict[str, Any]:
+        """
+        API 사용 통계를 반환합니다.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            사용 통계
+        """
+        return {
+            "api_key_configured": bool(self.api_key),
+            "max_retries": self.max_retries,
+            "retry_delay": self.retry_delay
+        }
 
 
 if __name__ == "__main__":

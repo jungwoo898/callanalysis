@@ -2,46 +2,50 @@ version: '3.8'
 
 services:
   callytics:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-      args:
-        BUILDKIT_INLINE_CACHE: 1
-    image: callytics-callytics:patched
-    container_name: callytics-enhanced
+    build: .
+    container_name: callytics
+    restart: unless-stopped
     ports:
       - "8000:8000"
-    volumes:
-      - audio_data:/app/audio
-      - db_data:/app/.db
-      - log_data:/app/logs
-      - temp_data:/app/.temp
-      - model_data:/app/models
-      - "./AI 모델:/app/AI 모델:ro"
     environment:
+      # API Keys (환경 변수에서 가져오거나 기본값 사용)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN:-}
+      
+      # Runtime Configuration
+      - DEVICE=cuda
+      - COMPUTE_TYPE=float16
       - CUDA_VISIBLE_DEVICES=0
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
       - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=512
-      - PYTORCH_CUDA_MEMORY_FRACTION=0.75
-      - TZ=Asia/Seoul
+      
+      # Database Configuration
+      - DATABASE_URL=sqlite:///app/.db/Callytics.sqlite
+      
+      # Logging
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./audio:/app/audio
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./Callytics.sqlite:/app/Callytics.sqlite
+      - ./config:/app/config
     deploy:
       resources:
-        limits:
-          memory: 8G
-          cpus: '2'
         reservations:
-          memory: 2G
           devices:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    ulimits:
-      memlock: -1
-      stack: 67108864
-    restart: unless-stopped
-    stop_grace_period: 120s
-    networks:
-      - callytics-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # 개발용 서비스 (선택사항)
   callytics-dev:
@@ -54,14 +58,28 @@ services:
       - ./data:/app/.db
       - ./logs:/app/logs
       - ./temp:/app/.temp
-      - ./AI\ 모델:/app/AI\ 모델
       # 개발 시 코드 변경사항 반영
       - .:/app
     environment:
+      # API Keys (개발용)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN:-}
+      
+      # Runtime Configuration
       - CUDA_VISIBLE_DEVICES=0
       - PYTHONPATH=/app
       - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=256
       - PYTORCH_CUDA_MEMORY_FRACTION=0.5
+      - DEVICE=cuda
+      - COMPUTE_TYPE=float16
+      
+      # Database Configuration
+      - DATABASE_URL=sqlite:///app/.db/Callytics.sqlite
+      
+      # Logging
+      - LOG_LEVEL=DEBUG
     deploy:
       resources:
         limits:
@@ -77,7 +95,7 @@ services:
       memlock: -1
       stack: 67108864
     restart: unless-stopped
-    command: ["python", "-u", "main_enhanced.py"]
+    command: ["python", "-u", "main.py"]
     profiles:
       - dev
 

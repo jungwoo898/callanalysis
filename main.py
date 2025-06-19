@@ -21,7 +21,8 @@ from src.utils.utils import Cleaner, Watcher
 from src.db.manager import Database
 from watchdog.events import FileSystemEventHandler
 import asyncio
-from watchdog.observers.polling import PollingObserver
+from watchdog.observers import Observer
+from src.text.korean_models import KoreanModels
 
 
 async def main(audio_file_path: str):
@@ -40,14 +41,14 @@ async def main(audio_file_path: str):
     """
     # Paths
     config_nemo = "config/nemo/diar_infer_telephonic.yaml"
-    manifest_path = ".temp/manifest.json"
-    temp_dir = ".temp"
+    manifest_path = "/app/.temp/manifest.json"
+    temp_dir = "/app/.temp"
     rttm_file_path = os.path.join(temp_dir, "pred_rttms", "mono_file.rttm")
-    transcript_output_path = ".temp/output.txt"
-    srt_output_path = ".temp/output.srt"
+    transcript_output_path = "/app/.temp/output.txt"
+    srt_output_path = "/app/.temp/output.srt"
     config_path = "config/config.yaml"
     prompt_path = "config/prompt.yaml"
-    db_path = ".db/Callytics.sqlite"
+    db_path = "/app/.db/Callytics.sqlite"
     db_topic_fetch_path = "src/db/sql/TopicFetch.sql"
     db_topic_insert_path = "src/db/sql/TopicInsert.sql"
     db_audio_properties_insert_path = "src/db/sql/AudioPropertiesInsert.sql"
@@ -131,6 +132,22 @@ async def main(audio_file_path: str):
     sentence_mapper = SentenceSpeakerMapper()
     ssm = sentence_mapper.get_sentences_speaker_mapping(wsm)
 
+    # Step 7.5: 언어 감지 및 검증
+    # API 기반 한국어 모델 초기화
+    korean_models = KoreanModels(device=device)
+    
+    # 전체 텍스트를 합쳐서 언어 감지
+    full_text = " ".join([utterance["text"] for utterance in ssm])
+    
+    if not korean_models.is_korean_content(full_text):
+        print("⚠️ 경고: 한국어가 아닌 오디오가 감지되었습니다.")
+        print("📝 감지된 언어로 처리하거나 한국어 오디오를 사용해주세요.")
+        # 한국어가 아닌 경우에도 계속 진행하되 경고 표시
+        language_warning = True
+    else:
+        print("✅ 한국어 오디오가 확인되었습니다.")
+        language_warning = False
+
     # Step 8 (Optional): Write Transcript and SRT Files
     writer = TranscriptWriter()
     writer.write_transcript(ssm, transcript_output_path)
@@ -143,15 +160,24 @@ async def main(audio_file_path: str):
     ssm = llm_result_handler.validate_and_fallback(speaker_roles, ssm)
     llm_result_handler.log_result(ssm, speaker_roles)
 
-    # Step 10: Sentiment Analysis
+    # Step 10: Sentiment Analysis (API 기반 배치 처리)
     ssm_with_indices = formatter.add_indices_to_ssm(ssm)
     annotator = Annotator(ssm_with_indices)
-    sentiment_results = await llm_handler.generate("SentimentAnalysis", user_input=ssm)
-    annotator.add_sentiment(sentiment_results)
-
-    # Step 11: Profanity Word Detection
-    profane_results = await llm_handler.generate("ProfanityWordDetection", user_input=ssm)
-    annotator.add_profanity(profane_results)
+    
+    # API를 통해 배치로 감정 분석 수행
+    texts_for_sentiment = [utterance["text"] for utterance in ssm]
+    sentiment_results = await korean_models.analyze_sentiment_batch(texts_for_sentiment)
+    
+    # 결과를 SSM에 적용
+    for i, utterance in enumerate(ssm):
+        utterance["sentiment"] = sentiment_results[i]
+    
+    # Step 11: Profanity Word Detection (API 기반 배치 처리)
+    profanity_results = await korean_models.detect_profanity_batch(texts_for_sentiment)
+    
+    # 결과를 SSM에 적용
+    for i, utterance in enumerate(ssm):
+        utterance["profane"] = profanity_results[i]
 
     # Step 12: Summary
     summary_result = await llm_handler.generate("Summary", user_input=ssm)
@@ -170,157 +196,230 @@ async def main(audio_file_path: str):
     )
     annotator.add_topic(topic_result)
 
-    #  Step 15: File/Audio Feature Extraction
-    props = audio_feature_extractor.properties()
+    # Step 15: Complaint Analysis
+    complaint_result = await llm_handler.generate("ComplaintAnalysis", user_input=ssm)
+    annotator.add_complaint(complaint_result)
 
-    (
-        name,
-        file_extension,
-        absolute_file_path,
-        sample_rate,
-        min_frequency,
-        max_frequency,
-        audio_bit_depth,
-        num_channels,
-        audio_duration,
-        rms_loudness,
-        final_features
-    ) = props
+    # Step 16: Action Items
+    action_result = await llm_handler.generate("ActionItems", user_input=ssm)
+    annotator.add_action_items(action_result)
 
-    rms_loudness_db = final_features["RMSLoudness"]
-    zero_crossing_rate_db = final_features["ZeroCrossingRate"]
-    spectral_centroid_db = final_features["SpectralCentroid"]
-    eq_20_250_db = final_features["EQ_20_250_Hz"]
-    eq_250_2000_db = final_features["EQ_250_2000_Hz"]
-    eq_2000_6000_db = final_features["EQ_2000_6000_Hz"]
-    eq_6000_20000_db = final_features["EQ_6000_20000_Hz"]
-    mfcc_values = [final_features[f"MFCC_{i}"] for i in range(1, 14)]
+    # Step 17: Quality Assessment
+    quality_result = await llm_handler.generate("QualityAssessment", user_input=ssm)
+    annotator.add_quality_assessment(quality_result)
 
-    final_output = annotator.finalize()
+    # Step 18: Extract Audio Properties
+    audio_properties = audio_feature_extractor.extract_properties()
 
-    # Step 16: Total Silence Calculation
-    stats = SilenceStats.from_segments(final_output['ssm'])
-    t_std = stats.threshold_std(factor=0.99)
-    final_output["silence"] = t_std
-
-    print("Final_Output:", final_output)
-
-    # Step 17: Database
-    # Step 17.1: Insert File Table
-    summary = final_output.get("summary", "")
-    conflict_flag = 1 if final_output.get("conflict", False) else 0
-    silence_value = final_output.get("silence", 0.0)
-    detected_topic = final_output.get("topic", "Unknown")
-
-    topic_id = db.get_or_insert_topic_id(detected_topic, topics, db_topic_insert_path)
-
-    params = (
-        name,
-        topic_id,
-        file_extension,
-        absolute_file_path,
-        sample_rate,
-        min_frequency,
-        max_frequency,
-        audio_bit_depth,
-        num_channels,
-        audio_duration,
-        rms_loudness_db,
-        zero_crossing_rate_db,
-        spectral_centroid_db,
-        eq_20_250_db,
-        eq_250_2000_db,
-        eq_2000_6000_db,
-        eq_6000_20000_db,
-        *mfcc_values,
-        summary,
-        conflict_flag,
-        silence_value
-    )
-
-    last_id = db.insert(db_audio_properties_insert_path, params)
-    print(f"Audio properties inserted successfully into the File table with ID: {last_id}")
-
-    # Step 17.2: Insert Utterance Table
-    utterances = final_output["ssm"]
-
-    for utterance in utterances:
-        file_id = last_id
-        speaker = utterance["speaker"]
-        sequence = utterance["index"]
-        start_time = utterance["start_time"] / 1000.0
-        end_time = utterance["end_time"] / 1000.0
-        content = utterance["text"]
-        sentiment = utterance["sentiment"]
-        profane = 1 if utterance["profane"] else 0
-
-        utterance_params = (
-            file_id,
-            speaker,
-            sequence,
-            start_time,
-            end_time,
-            content,
-            sentiment,
-            profane
+    # Step 19: Database Operations
+    # Step 19.1: Insert Audio Properties (기존 SQL 파일 사용)
+    try:
+        # 기존 AudioPropertiesInsert.sql에 맞는 데이터 구조로 변환
+        (
+            name,
+            extension,
+            path,
+            sample_rate,
+            min_freq,
+            max_freq,
+            bit_depth,
+            channels,
+            duration,
+            rms_loudness,
+            final_features
+        ) = audio_feature_extractor.properties()
+        
+        # 기본값 설정
+        summary = "오디오 분석 완료"
+        conflict_flag = 0
+        silence_value = 0.0
+        detected_topic = "일반"
+        
+        # Topic ID 가져오기 (기본값 1 사용)
+        topic_id = 1
+        
+        # AudioPropertiesInsert.sql에 맞는 파라미터 구성
+        params = (
+            name,
+            topic_id,
+            extension,
+            path,
+            sample_rate,
+            min_freq,
+            max_freq,
+            bit_depth,
+            channels,
+            duration,
+            rms_loudness,
+            final_features.get("ZeroCrossingRate", 0.0),
+            final_features.get("SpectralCentroid", 0.0),
+            final_features.get("EQ_20_250_Hz", 0.0),
+            final_features.get("EQ_250_2000_Hz", 0.0),
+            final_features.get("EQ_2000_6000_Hz", 0.0),
+            final_features.get("EQ_6000_20000_Hz", 0.0),
+            final_features.get("MFCC_1", 0.0),
+            final_features.get("MFCC_2", 0.0),
+            final_features.get("MFCC_3", 0.0),
+            final_features.get("MFCC_4", 0.0),
+            final_features.get("MFCC_5", 0.0),
+            final_features.get("MFCC_6", 0.0),
+            final_features.get("MFCC_7", 0.0),
+            final_features.get("MFCC_8", 0.0),
+            final_features.get("MFCC_9", 0.0),
+            final_features.get("MFCC_10", 0.0),
+            final_features.get("MFCC_11", 0.0),
+            final_features.get("MFCC_12", 0.0),
+            final_features.get("MFCC_13", 0.0),
+            summary,
+            conflict_flag,
+            silence_value
         )
+        
+        last_id = db.insert(db_audio_properties_insert_path, params)
+        print(f"✅ 오디오 속성 DB 저장 완료: ID {last_id}")
+        
+    except Exception as e:
+        print(f"❌ 오디오 속성 DB 저장 실패: {e}")
+        last_id = None
 
-        db.insert(db_utterance_insert_path, utterance_params)
+    # Step 19.2: Insert Utterances (기존 SQL 파일 사용)
+    if last_id is not None:
+        try:
+            for i, utterance in enumerate(ssm):
+                # UtteranceInsert.sql에 맞는 파라미터 구성
+                utterance_params = (
+                    last_id,  # FileID
+                    utterance["speaker"],  # Speaker
+                    i + 1,  # Sequence
+                    utterance["start"] / 1000.0,  # StartTime (초 단위)
+                    utterance["end"] / 1000.0,  # EndTime (초 단위)
+                    utterance["text"],  # Content
+                    utterance.get("sentiment", "중립"),  # Sentiment
+                    1 if utterance.get("profane", False) else 0  # Profane (0/1)
+                )
+                db.insert(db_utterance_insert_path, utterance_params)
+            
+            print(f"✅ 발화 데이터 DB 저장 완료: {len(ssm)}개 발화")
+            
+        except Exception as e:
+            print(f"❌ 발화 데이터 DB 저장 실패: {e}")
+    else:
+        print("⚠️ File ID가 없어 발화 데이터 저장을 건너뜁니다.")
 
-    print("Utterances inserted successfully into the Utterance table.")
+    # Step 20: Cleanup
+    cleaner.cleanup_temp_files(temp_dir)
 
-    # Step 18: Clean Up
-    cleaner.cleanup(temp_dir, audio_file_path)
+    print(f"✅ 오디오 처리 완료: {audio_file_path}")
+    print(f"📊 처리된 발화 수: {len(ssm)}")
+    print(f"🗣️ 감지된 화자 수: {len(set(utterance['speaker'] for utterance in ssm))}")
+    print(f"📝 감지된 언어: {detected_language}")
+    if language_warning:
+        print("⚠️ 언어 경고: 한국어가 아닌 콘텐츠가 포함되어 있습니다.")
 
 
 async def process(path: str):
     """
-    Asynchronous callback function that is triggered when a new audio file is detected.
+    Process a single audio file asynchronously.
 
     Parameters
     ----------
     path : str
-        The path to the newly created audio file.
+        Path to the audio file to process.
 
     Returns
     -------
     None
     """
-    print(f"Processing new audio file: {path}")
-    await main(path)
+    try:
+        print(f"🎵 오디오 파일 처리 시작: {path}")
+        await main(path)
+        print(f"✅ 오디오 파일 처리 완료: {path}")
+    except Exception as e:
+        print(f"❌ 오디오 파일 처리 실패: {path}")
+        print(f"오류: {e}")
+
+
+def watch_and_process():
+    """
+    Watch for new audio files and process them automatically.
+    """
+    print("🔍 오디오 파일 감시 시작...")
+    
+    # 감시할 디렉토리 설정
+    watch_directories = [
+        "/app/audio",
+        "/app/temp"
+    ]
+    
+    # 파일 핸들러 클래스 정의
+    class FileHandler(FileSystemEventHandler):
+        def __init__(self, callback):
+            self.callback = callback
+            self.processing_files = set()
+        
+        def on_created(self, event):
+            if not event.is_directory:
+                self._handle_file(event.src_path)
+        
+        def on_moved(self, event):
+            if not event.is_directory:
+                self._handle_file(event.dest_path)
+        
+        def _handle_file(self, file_path):
+            # 이미 처리 중인 파일인지 확인
+            if file_path in self.processing_files:
+                return
+            
+            # 오디오 파일 확장자 확인
+            audio_extensions = {'.wav', '.mp3', '.flac', '.m4a', '.aac', '.ogg'}
+            if any(file_path.lower().endswith(ext) for ext in audio_extensions):
+                print(f"🎵 새로운 오디오 파일 감지: {file_path}")
+                self.processing_files.add(file_path)
+                
+                # 비동기로 파일 처리
+                asyncio.create_task(self._process_file(file_path))
+        
+        async def _process_file(self, file_path):
+            try:
+                await self.callback(file_path)
+            finally:
+                # 처리 완료 후 파일 목록에서 제거
+                self.processing_files.discard(file_path)
+    
+    # 파일 핸들러 생성
+    handler = FileHandler(process)
+    
+    # Observer 설정 및 시작
+    observer = Observer()
+    for directory in watch_directories:
+        if os.path.exists(directory):
+            observer.schedule(handler, directory, recursive=False)
+            print(f"📁 디렉토리 감시 시작: {directory}")
+        else:
+            print(f"⚠️ 디렉토리가 존재하지 않습니다: {directory}")
+    
+    observer.start()
+    
+    try:
+        print("🔄 파일 감시 중... (Ctrl+C로 종료)")
+        while True:
+            import time
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n🛑 파일 감시 중지...")
+        observer.stop()
+    
+    observer.join()
+    print("✅ 파일 감시 종료")
 
 
 if __name__ == "__main__":
-    # 1) 감시할 디렉터리 절대경로 계산 & 생성
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    watch_dir = os.path.join(BASE_DIR, ".data", "input")
-    os.makedirs(watch_dir, exist_ok=True)
-    print(f"→ Watching for new files in: {watch_dir}")
-
-    # 2) 파일 생성·이동 이벤트 처리 핸들러
-    class FileHandler(FileSystemEventHandler):
-        def __init__(self, callback):
-            super().__init__()
-            self.callback = callback
-
-        def on_created(self, event):
-            if not event.is_directory:
-                print(f"[Watcher] created: {event.src_path}")
-                asyncio.run(self.callback(event.src_path))
-
-        def on_moved(self, event):
-            if not event.is_directory:
-                print(f"[Watcher] moved: {event.dest_path}")
-                asyncio.run(self.callback(event.dest_path))
-
-    # 3) Observer 설정 및 실행
-    observer = PollingObserver()
-    observer.schedule(FileHandler(process), watch_dir, recursive=False)
-    observer.start()
-    try:
-        import time
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+    import sys
+    
+    if len(sys.argv) > 1:
+        # 파일 경로가 제공된 경우 해당 파일만 처리
+        file_path = sys.argv[1]
+        asyncio.run(process(file_path))
+    else:
+        # 파일 경로가 제공되지 않은 경우 감시 모드로 실행
+        watch_and_process()
