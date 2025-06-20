@@ -1,5 +1,10 @@
 # Standard library imports
 import os
+import asyncio
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import uvicorn
+from contextlib import asynccontextmanager
 
 # Related third-party imports
 from omegaconf import OmegaConf
@@ -20,10 +25,116 @@ from src.text.llm import LLMOrchestrator, LLMResultHandler
 from src.utils.utils import Cleaner, Watcher
 from src.db.manager import Database
 from watchdog.events import FileSystemEventHandler
-import asyncio
 from watchdog.observers import Observer
 from src.text.korean_models import KoreanModels
 
+# FastAPI 앱 생성
+app = FastAPI(title="Callytics API", version="1.0.0")
+
+# 전역 변수로 처리 상태 관리
+processing_status = {
+    "is_processing": False,
+    "current_file": None,
+    "total_processed": 0,
+    "errors": []
+}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리"""
+    # 시작 시 초기화
+    print("🚀 Callytics API 서버 시작")
+    yield
+    # 종료 시 정리
+    print("🛑 Callytics API 서버 종료")
+
+app = FastAPI(title="Callytics API", version="1.0.0", lifespan=lifespan)
+
+@app.get("/health")
+async def health_check():
+    """헬스체크 엔드포인트"""
+    try:
+        # 기본 시스템 상태 확인
+        import torch
+        cuda_available = torch.cuda.is_available()
+        
+        # API 키 확인
+        api_keys = {
+            "openai": bool(os.getenv("OPENAI_API_KEY")),
+            "azure": bool(os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT")),
+            "huggingface": bool(os.getenv("HUGGINGFACE_API_TOKEN"))
+        }
+        
+        # 데이터베이스 연결 확인
+        db_path = "/app/.db/Callytics.sqlite"
+        db_accessible = os.path.exists(db_path)
+        
+        # 오디오 디렉토리 확인
+        audio_dir = "/app/audio"
+        audio_accessible = os.path.exists(audio_dir)
+        
+        status = "healthy" if any(api_keys.values()) and db_accessible else "degraded"
+        
+        return JSONResponse({
+            "status": status,
+            "timestamp": asyncio.get_event_loop().time(),
+            "cuda_available": cuda_available,
+            "api_keys_configured": api_keys,
+            "database_accessible": db_accessible,
+            "audio_directory_accessible": audio_accessible,
+            "processing_status": processing_status
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "unhealthy",
+            "error": str(e)
+        }, status_code=500)
+
+@app.get("/metrics")
+async def get_metrics():
+    """메트릭 엔드포인트 (Prometheus용)"""
+    try:
+        import psutil
+        
+        # 시스템 메트릭 수집
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        
+        # GPU 메트릭 (가능한 경우)
+        gpu_metrics = {}
+        try:
+            import torch
+            if torch.cuda.is_available():
+                gpu_metrics = {
+                    "gpu_count": torch.cuda.device_count(),
+                    "gpu_memory_allocated": torch.cuda.memory_allocated() / 1024**3,  # GB
+                    "gpu_memory_reserved": torch.cuda.memory_reserved() / 1024**3,    # GB
+                }
+        except:
+            pass
+        
+        return JSONResponse({
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory.percent,
+            "memory_available_gb": memory.available / 1024**3,
+            "gpu_metrics": gpu_metrics,
+            "processing_status": processing_status
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+async def root():
+    """루트 엔드포인트"""
+    return {
+        "message": "Callytics API 서버가 실행 중입니다",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "metrics": "/metrics",
+            "docs": "/docs"
+        }
+    }
 
 async def main(audio_file_path: str):
     """
@@ -331,12 +442,33 @@ async def process(path: str):
     None
     """
     try:
+        # 처리 상태 업데이트
+        processing_status["is_processing"] = True
+        processing_status["current_file"] = path
+        processing_status["errors"] = []
+        
         print(f"🎵 오디오 파일 처리 시작: {path}")
         await main(path)
         print(f"✅ 오디오 파일 처리 완료: {path}")
+        
+        # 처리 완료 상태 업데이트
+        processing_status["total_processed"] += 1
+        processing_status["current_file"] = None
+        
     except Exception as e:
         print(f"❌ 오디오 파일 처리 실패: {path}")
         print(f"오류: {e}")
+        
+        # 오류 상태 업데이트
+        processing_status["errors"].append({
+            "file": path,
+            "error": str(e),
+            "timestamp": asyncio.get_event_loop().time()
+        })
+        
+    finally:
+        # 처리 완료
+        processing_status["is_processing"] = False
 
 
 def watch_and_process():
@@ -415,11 +547,28 @@ def watch_and_process():
 
 if __name__ == "__main__":
     import sys
+    import threading
     
     if len(sys.argv) > 1:
         # 파일 경로가 제공된 경우 해당 파일만 처리
         file_path = sys.argv[1]
         asyncio.run(process(file_path))
     else:
-        # 파일 경로가 제공되지 않은 경우 감시 모드로 실행
-        watch_and_process()
+        # FastAPI 서버와 파일 감시를 동시에 실행
+        def run_file_watcher():
+            """별도 스레드에서 파일 감시 실행"""
+            watch_and_process()
+        
+        # 파일 감시 스레드 시작
+        watcher_thread = threading.Thread(target=run_file_watcher, daemon=True)
+        watcher_thread.start()
+        
+        # FastAPI 서버 시작
+        print("🚀 Callytics API 서버 시작...")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            log_level="info",
+            access_log=True
+        )

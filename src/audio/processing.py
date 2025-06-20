@@ -572,8 +572,8 @@ class IntegratedAudioProcessor:
                 )
                 
                 if text.strip():
-                    # 구두점 복원 적용
-                    restored_text = self.punctuation_restorer.restore_punctuation_simple(text)
+                    # 간단한 구두점 복원 (속도 향상)
+                    restored_text = text.strip()
                     
                     utterances.append({
                         'speaker': speaker_mapping[speaker],
@@ -600,8 +600,8 @@ class IntegratedAudioProcessor:
             )
             
             if text.strip():
-                # 구두점 복원 적용
-                restored_text = self.punctuation_restorer.restore_punctuation_simple(text)
+                # 간단한 구두점 복원 (속도 향상)
+                restored_text = text.strip()
                 
                 return [{
                     'speaker': 'Unknown',
@@ -638,7 +638,7 @@ class Transcriber:
 
     def __init__(
             self,
-            model_name: str = 'large-v3',
+            model_name: str = 'medium',
             device: str = 'cpu',
             compute_type: str = 'int8'
     ) -> None:

@@ -63,7 +63,11 @@ RUN pip install \
     transformers==4.30.0 \
     IPython==8.30.0 \
     treetable==0.2.5 \
-    gradio==4.19.2
+    gradio==4.19.2 \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    psutil==5.9.5 \
+    cython==3.0.6
 
 # 대용량/복잡한 패키지들 단계별 설치
 RUN pip install faster-whisper==1.1.0
@@ -71,7 +75,7 @@ RUN pip install faster-whisper==1.1.0
 # demucs 설치 (메모리 사용량 높음)
 RUN pip install demucs==4.0.1
 
-# nemo_toolkit 대신 더 안정적인 대안 사용 (PyTorch 2.0.0과 호환)
+# nemo_toolkit 설치 (Cython 의존성 해결 후)
 RUN pip install "nemo_toolkit[asr]==1.20.0"
 
 # pyannote.audio 설치
@@ -79,6 +83,12 @@ RUN pip install pyannote.audio==3.3.2
 
 # MPSENet 설치
 RUN pip install MPSENet==1.0.3
+
+# CTC Forced Aligner 설치
+RUN pip install ctc-forced-aligner==1.0.2
+
+# 추가 의존성 설치
+RUN pip install pandas==2.3.0 matplotlib==3.10.3 scikit-learn==1.7.0
 
 # 실행 스테이지
 FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04

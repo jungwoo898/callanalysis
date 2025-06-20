@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -105,7 +106,7 @@ class ChatGPTAnalyzer:
     def _create_analysis_prompt(self) -> str:
         """분석용 프롬프트 생성"""
         return """당신은 통신사 고객 상담 전문가입니다. 
-다음의 통신사 상담 내용을 분석하여 JSON 형태로 결과를 반환해주세요.
+다음의 통신사 상담 내용을 분석하여 정확한 JSON 형태로 결과를 반환해주세요.
 
 분석해야 할 항목:
 1. 수집기관별 업무 유형: 요금 안내, 요금 납부, 요금제 변경, 선택약정 할인, 납부 방법 변경, 부가서비스 안내, 소액 결제, 휴대폰 정지 분실 파손, 기기변경, 명의 번호 유심 해지, 그 외 업무유형
@@ -132,7 +133,8 @@ class ChatGPTAnalyzer:
 - 상담 주제는 고객이 문의한 핵심 내용에 따라 분류하세요
 - 상담 요건은 고객이 제기한 문제의 개수에 따라 분류하세요
 
-다음 형식의 JSON으로 응답해주세요:
+중요: 반드시 다음 형식의 JSON으로만 응답해주세요. 다른 설명이나 텍스트는 포함하지 마세요.
+
 {
     "business_type": "업무 유형",
     "classification_type": "분류 유형", 
@@ -215,17 +217,52 @@ class ChatGPTAnalyzer:
     def _parse_json_response(self, content: str) -> Dict[str, Any]:
         """JSON 응답 파싱"""
         try:
-            # JSON 블록 찾기
+            # JSON 블록 찾기 (여러 방법 시도)
+            json_str = None
+            
+            # 방법 1: 중괄호로 감싸진 JSON 찾기
             start_idx = content.find('{')
             end_idx = content.rfind('}') + 1
             
             if start_idx != -1 and end_idx != 0:
                 json_str = content[start_idx:end_idx]
+            
+            # 방법 2: ```json 블록 찾기
+            if not json_str:
+                json_start = content.find('```json')
+                if json_start != -1:
+                    json_start = content.find('\n', json_start) + 1
+                    json_end = content.find('```', json_start)
+                    if json_end != -1:
+                        json_str = content[json_start:json_end].strip()
+            
+            # 방법 3: ``` 블록 찾기
+            if not json_str:
+                json_start = content.find('```')
+                if json_start != -1:
+                    json_start = content.find('\n', json_start) + 1
+                    json_end = content.find('```', json_start)
+                    if json_end != -1:
+                        json_str = content[json_start:json_end].strip()
+            
+            if json_str:
+                # JSON 문자열 정리
+                json_str = json_str.strip()
+                # 불필요한 문자 제거
+                json_str = json_str.replace('\n', ' ').replace('\r', ' ')
+                json_str = re.sub(r'\s+', ' ', json_str)
+                
                 return json.loads(json_str)
             else:
+                print(f"JSON 블록을 찾을 수 없습니다. 응답: {content[:200]}...")
                 return {}
+                
         except json.JSONDecodeError as e:
             print(f"JSON 파싱 오류: {e}")
+            print(f"파싱 시도한 문자열: {json_str[:200] if json_str else 'None'}...")
+            return {}
+        except Exception as e:
+            print(f"JSON 파싱 중 예상치 못한 오류: {e}")
             return {}
     
     def batch_analyze(self, conversations: List[str]) -> List[ConsultationAnalysisResult]:

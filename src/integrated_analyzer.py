@@ -57,7 +57,7 @@ class IntegratedAnalyzer:
         self.audio_processor = IntegratedAudioProcessor(
             language="ko",
             device="auto",
-            whisper_model="large-v3",
+            whisper_model="medium",
             diarization_auth_token=diarization_token
         )
         

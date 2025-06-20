@@ -61,7 +61,7 @@ def main():
         )
         
         # 테스트 오디오 파일 경로
-        audio_file = "audio/40186.wav"
+        audio_file = "audio/40186.mp3"
         
         if not Path(audio_file).exists():
             logger.error(f"오디오 파일을 찾을 수 없습니다: {audio_file}")
